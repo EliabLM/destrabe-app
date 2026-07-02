@@ -1,0 +1,137 @@
+# ───────────────────────────────────────────────
+# Dependencias
+# ───────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+# ───────────────────────────────────────────────
+# Build / compilación
+# ───────────────────────────────────────────────
+dist/
+build/
+out/
+*.tsbuildinfo
+.turbo/
+
+# ───────────────────────────────────────────────
+# Expo / React Native (app/)
+# ───────────────────────────────────────────────
+.expo/
+.expo/dist/
+expo-env.d.ts
+web-build/
+# Native artifacts de expo prebuild
+/app/ios/
+/app/android/
+*.orig.*
+# Keystores y firma
+*.jks
+*.keystore
+!debug.keystore
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+*.xcworkspace
+# Google Services (si se agrega FCM nativo)
+google-services.json
+GoogleService-Info.plist
+
+# ───────────────────────────────────────────────
+# Prisma (backend/)
+# ───────────────────────────────────────────────
+# Se trackean las migraciones (source); ignorar respaldos
+backend/prisma/**/*.bak
+# Cliente generado por prisma generate (si se genera fuera de node_modules)
+apps/**/prisma/generated/
+
+# ───────────────────────────────────────────────
+# Tests y cobertura (TDD estricto)
+# ───────────────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+.vitest-cache/
+test-results/
+junit.xml
+
+# ───────────────────────────────────────────────
+# Entorno y secrets
+# ───────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+secrets/
+creds/
+service-account*.json
+
+# ───────────────────────────────────────────────
+# Datos locales (Postgres / Redis)
+# ───────────────────────────────────────────────
+dump.rdb
+*.rdb
+pgdata/
+postgres_data/
+redis_data/
+
+# ───────────────────────────────────────────────
+# Caddy (infra/)
+# ───────────────────────────────────────────────
+infra/caddy_data/
+infra/caddy_config/
+*.crt
+*.csr
+*.pem
+
+# ───────────────────────────────────────────────
+# Logs
+# ───────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ───────────────────────────────────────────────
+# IDE / editores
+# ───────────────────────────────────────────────
+.vscode/
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*~
+.history/
+
+# ───────────────────────────────────────────────
+# SO
+# ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ───────────────────────────────────────────────
+# Caches varios
+# ───────────────────────────────────────────────
+.cache/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+
+# ───────────────────────────────────────────────
+# Tooling de agentes (registros y caches regenerables; no son código del producto)
+.atl/
+.codegraph/
