@@ -2,7 +2,7 @@
 
 App móvil de intermediación de servicios de grúa. Modelo de oferta libre (tipo InDriver): el cliente publica una solicitud, los operadores cercanos cotizan, y el cliente acepta la mejor oferta. La plataforma retiene una comisión configurable y transfiere el resto al operador mediante split de pago.
 
-> **Estado:** Fase Demo — foundation + data model listos. Sin pagos reales ni tracking en vivo aún.
+> **Estado:** Fase Demo — foundation + data model + auth (OTP teléfono) listos. Sin pagos reales ni tracking en vivo aún.
 
 ## Fases
 
@@ -77,6 +77,21 @@ npm run format                       # prettier --write
 ```
 
 Health check: `GET http://localhost:3000/health` → `{ "status": "ok" }`.
+
+## Autenticación (OTP teléfono)
+
+Auth centralizada en Better Auth (ADR-003), montada bajo `/api/auth` con `prismaAdapter` (Postgres) + plugin `phoneNumber` + Plivo (SMS en prod, log en dev). Sesión JWT en cookies firmadas.
+
+### Endpoints
+
+| Método | Ruta                              | Body / Efecto                                                      |
+| ------ | --------------------------------- | ------------------------------------------------------------------ |
+| POST   | `/api/auth/phone-number/send-otp` | `{ phoneNumber }` → envía código SMS (o log en dev)                |
+| POST   | `/api/auth/phone-number/verify`   | `{ phoneNumber, code }` → crea sesión, `Set-Cookie: session_token` |
+| GET    | `/api/auth/get-session`           | `{ session, user }` o `null`                                       |
+| POST   | `/api/auth/sign-out`              | borra la cookie de sesión (`Max-Age=0`)                            |
+
+> Roles (`UserRole`: `CLIENT` por defecto, `OPERATOR`) se enforcean con `requireAuth` / `requireRole` (`backend/src/middleware/auth.ts`). Detalles y desviaciones de la spec en `docs/adr/ADR-003-better-auth.md`.
 
 ## Licencia
 

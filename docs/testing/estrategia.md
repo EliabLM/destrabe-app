@@ -55,8 +55,22 @@ npm run test -w @destrabe/backend  # solo backend
 
 ## Integración vs unitario
 
-- **Unitario**: schemas (shared), `parseEnv`, middleware directo.
-- **Integración**: `/health` vía supertest, resolución de workspace (`@destrabe/shared` desde backend).
+- **Unitario**: schemas (shared), `parseEnv`, middleware directo, config de auth (`auth.config.test.ts`), Plivo client (`plivo.test.ts`).
+- **Integración**: `/health` vía supertest, resolución de workspace (`@destrabe/shared` desde backend), montaje de auth handler (`auth.mount.test.ts`).
+- **DB smoke (auth flow)**: `auth.otp.flow.test.ts` — flujo OTP end-to-end (send → verify → get-session → sign-out) con Postgres real, `request.agent` (cookie jar) y mock de Plivo que captura el código generado por el plugin. Cubre REQ-006/007/010 de `cambio-003-auth`.
+
+### Suite auth flow (`auth.otp.flow.test.ts`)
+
+| Aspecto        | Valor                                                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite          | db (`vitest.db.config.ts`, `fileParallelism=false`)                                                                                      |
+| Requiere       | Postgres up + migración `add_auth_identity` aplicada                                                                                     |
+| Cookie jar     | `supertest.agent(app)` conserva cookies entre requests                                                                                   |
+| Mock           | `vi.mock('../src/lib/plivo', ...)` captura `sendOtp({phoneNumber, code})`                                                                |
+| Limpieza       | `TRUNCATE` de `User/Session/Account/Verification` (CASCADE) por test                                                                     |
+| `DATABASE_URL` | Debes inyectarla al proceso que lanza vitest (no basta `process.env` dentro del test — el singleton `prisma` lo captura en construcción) |
+
+> **Desviación documentada:** las rutas reales del plugin `phoneNumber` son `/phone-number/send-otp` y `/phone-number/verify` (no `/phone/send-otp` y `/phone/verify-otp` como decía la spec §7.1). Ver ADR-003 y cabecera del test.
 
 ## Próximos dominios (futuro)
 

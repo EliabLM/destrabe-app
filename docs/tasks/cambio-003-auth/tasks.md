@@ -184,4 +184,4 @@ Etapa `apply`: ejecutar T1→T12 con TDD.
 - [x] T9 — Flujo OTP end-to-end (requiere PG up)
 - [x] T10 — Ampliar tests de env (TDD)
 - [x] T11 — ADR-003 documentación
-- [ ] T12 — Docs finales (README + testing strategy)
+- [x] T12 — Docs finales (README + testing strategy)
