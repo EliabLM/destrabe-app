@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  beforeEach,
+  afterAll,
+} from 'vitest';
 import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 
@@ -53,7 +61,7 @@ const { capturedSendOtps, sendOtpMock } = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock('../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
+vi.mock('../../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
 
 // Cliente Prisma dedicado para limpieza (no se mockea: T9 es db smoke).
 const cleanupPrisma = new PrismaClient();
@@ -93,36 +101,28 @@ afterAll(async () => {
 
 // `createApp` se importa DESPUÉS de setear DATABASE_URL y de declarar el mock
 // (vitest hoist-ea los vi.mock sobre los imports automáticamente).
-import { createApp } from '../src/app';
+import { createApp } from '../../src/app';
 
 const TEST_PHONE = '+573001234599';
 
 describe('Flujo OTP end-to-end (REQ-006, REQ-007, REQ-010 — T9)', () => {
-  it(
-    'send-otp → 2xx y captura el OTP vía mock de Plivo (REQ-006/010)',
-    async () => {
-      const app = createApp();
-      const res = await request(app)
-        .post('/api/auth/phone-number/send-otp')
-        .send({ phoneNumber: TEST_PHONE });
+  it('send-otp → 2xx y captura el OTP vía mock de Plivo (REQ-006/010)', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/api/auth/phone-number/send-otp')
+      .send({ phoneNumber: TEST_PHONE });
 
-      // REQ-006: respuesta exitosa (2xx).
-      expect(res.status).toBeGreaterThanOrEqual(200);
-      expect(res.status).toBeLessThan(300);
+    // REQ-006: respuesta exitosa (2xx).
+    expect(res.status).toBeGreaterThanOrEqual(200);
+    expect(res.status).toBeLessThan(300);
 
-      // REQ-010: Plivo real no fue llamado; el mock capturó el código generado.
-      expect(sendOtpMock).toHaveBeenCalledTimes(1);
-      expect(sendOtpMock).toHaveBeenCalledWith(
-        TEST_PHONE,
-        expect.any(String),
-      );
-      const captured = capturedSendOtps.find(
-        (o) => o.phoneNumber === TEST_PHONE,
-      );
-      expect(captured).toBeDefined();
-      expect(captured!.code).toMatch(/^\d{6}$/);
-    },
-  );
+    // REQ-010: Plivo real no fue llamado; el mock capturó el código generado.
+    expect(sendOtpMock).toHaveBeenCalledTimes(1);
+    expect(sendOtpMock).toHaveBeenCalledWith(TEST_PHONE, expect.any(String));
+    const captured = capturedSendOtps.find((o) => o.phoneNumber === TEST_PHONE);
+    expect(captured).toBeDefined();
+    expect(captured!.code).toMatch(/^\d{6}$/);
+  });
 
   it('flujo completo send → verify → get-session (REQ-007)', async () => {
     const agent = request.agent(createApp());

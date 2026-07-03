@@ -13,7 +13,10 @@ import { userRoleSchema } from './user.schema';
 const phoneNumberField = z
   .string()
   .min(1, 'phoneNumber es requerido')
-  .regex(/^\+\d{6,15}$/, 'phoneNumber debe estar en formato E.164 (ej. +573001234567)');
+  .regex(
+    /^\+\d{6,15}$/,
+    'phoneNumber debe estar en formato E.164 (ej. +573001234567)',
+  );
 
 /** OTP de 6 dígitos (config `otpLength: 6` en design §3). */
 const otpCodeField = z

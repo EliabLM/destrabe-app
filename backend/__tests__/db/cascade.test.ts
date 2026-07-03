@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { prisma, resetDb } from './helpers';
+import { prisma, resetDb, seedUser } from './helpers';
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -11,6 +11,8 @@ describe('cascade delete (REQ-006)', () => {
   });
 
   it('deleting a Service cascades to Quotes, Messages, Payment, Review', async () => {
+    await seedUser('u-c');
+    await seedUser('u-o');
     const client = await prisma.clientProfile.create({
       data: { userId: 'u-c' },
     });
@@ -65,6 +67,8 @@ describe('cascade delete (REQ-006)', () => {
   });
 
   it('deleting an OperatorProfile cascades to its Quotes and Reviews', async () => {
+    await seedUser('u-c');
+    await seedUser('u-o');
     const client = await prisma.clientProfile.create({
       data: { userId: 'u-c' },
     });

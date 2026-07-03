@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { prisma, resetDb } from './helpers';
+import { prisma, resetDb, seedUser } from './helpers';
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -11,6 +11,8 @@ describe('relations (REQ-003, REQ-006)', () => {
   });
 
   it('creates clientProfile -> service -> quote -> payment -> message -> review', async () => {
+    await seedUser('user-client-1');
+    await seedUser('user-operator-1');
     const client = await prisma.clientProfile.create({
       data: { userId: 'user-client-1' },
     });
@@ -90,6 +92,8 @@ describe('relations (REQ-003, REQ-006)', () => {
   });
 
   it('acceptedQuote 1:1 relation works', async () => {
+    await seedUser('u-c');
+    await seedUser('u-o');
     const client = await prisma.clientProfile.create({
       data: { userId: 'u-c' },
     });

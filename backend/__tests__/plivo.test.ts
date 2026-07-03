@@ -49,9 +49,7 @@ describe('plivo client — sendOtp (REQ-005)', () => {
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('+573001234567'),
     );
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('123456'),
-    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('123456'));
     expect(ClientCtor).not.toHaveBeenCalled();
     expect(plivoClientMock.messages.create).not.toHaveBeenCalled();
   });

@@ -68,12 +68,12 @@ Express existente. Los detalles concretos surgidos en la fase de implementación
 
 ### Endpoints reales del plugin `phoneNumber` (mounteados bajo `/api/auth`)
 
-| Método | Ruta                     | Body / Efecto                                       |
-| ------ | ------------------------ | --------------------------------------------------- |
-| POST   | `/phone-number/send-otp` | `{ phoneNumber }` → `{ message: "code sent" }`      |
+| Método | Ruta                     | Body / Efecto                                                                     |
+| ------ | ------------------------ | --------------------------------------------------------------------------------- |
+| POST   | `/phone-number/send-otp` | `{ phoneNumber }` → `{ message: "code sent" }`                                    |
 | POST   | `/phone-number/verify`   | `{ phoneNumber, code }` → `{ status, token, user }` + `Set-Cookie: session_token` |
-| GET    | `/get-session`           | `{ session, user }` o `null`                        |
-| POST   | `/sign-out`              | cookie borrada (`Max-Age=0`)                        |
+| GET    | `/get-session`           | `{ session, user }` o `null`                                                      |
+| POST   | `/sign-out`              | cookie borrada (`Max-Age=0`)                                                      |
 
 > **Desviación de la spec:** la spec §7.1 usaba `/phone/send-otp` y `/phone/verify-otp`.
 > El plugin real expone `/phone-number/*` y `/verify` (sin `-otp`). Documentado en T9.
