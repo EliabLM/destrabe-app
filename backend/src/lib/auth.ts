@@ -16,6 +16,13 @@ import { sendOtp } from './plivo';
  *   persiste el OTP durante `sendOTP`). El design proponía
  *   `verifyOTP: () => false` como placeholder, pero eso bloquearía toda
  *   verificación → desviación documentada en el return del apply.
+ * - `signUpOnVerification`: al verificar un teléfono SIN usuario existente,
+ *   el plugin lanza `FAILED_TO_UPDATE_USER` (500) a menos que se configure
+ *   este callback. Lo añadimos para habilitar el registro solo por teléfono
+ *   (la spec implícita REQ-007 espera que verify cree sesión+usuario para un
+ *   teléfono nuevo). Email temporal determinista por teléfono; `email` es
+ *   opcional+unique en el schema, así que el dominio `.local` evita colisiones
+ *   con futuros registros por email. Ajuste detectado en T9 (apply).
  * - `additionalFields.role`: rol de usuario almacenado como string (Better Auth
  *   no soporta enum directo); se castea a `UserRole` al leer.
  * - `authHandler`: handler montable en Express vía `toNodeHandler(auth.handler)`
@@ -30,6 +37,14 @@ export const auth = betterAuth({
       sendOTP: ({ phoneNumber, code }) => sendOtp(phoneNumber, code),
       otpLength: 6,
       expiresIn: 5 * 60, // 5 min
+      // Sign-up por teléfono: si verify-otp no encuentra usuario, Better Auth
+      // crea un User con `email = getTempEmail(phoneNumber)` y marca
+      // `phoneNumberVerified=true`. Necesario para el flujo de registro solo
+      // por teléfono (T9 / REQ-007). Sin esto, la verificación de un teléfono
+      // nuevo responde 500 `FAILED_TO_UPDATE_USER`.
+      signUpOnVerification: {
+        getTempEmail: (phoneNumber) => `tmp+${phoneNumber}@destrabe.local`,
+      },
     }),
   ],
   user: {
