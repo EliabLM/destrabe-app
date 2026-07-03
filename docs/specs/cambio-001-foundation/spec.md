@@ -152,16 +152,16 @@ Scenario: backend levanta sin DB ni Redis
 
 ## Cobertura de tests (mapeo requisito → test)
 
-| Requisito | Test |
-|---|---|
-| REQ-001 | `shared/__tests__/workspace.test.ts` (resolución de import) |
-| REQ-002 | `shared/__tests__/serviceStatus.schema.test.ts` |
-| REQ-003 | `backend/__tests__/health.route.test.ts` |
-| REQ-004 | `backend/__tests__/env.test.ts` |
-| REQ-005 | `backend/__tests__/errorHandler.test.ts` |
-| REQ-006 | `lint` + `build` pasan (CI/manual) |
-| REQ-007 | suite Vitest + coverage report |
-| REQ-008 | `backend/__tests__/health.no-db.test.ts` |
+| Requisito | Test                                                        |
+| --------- | ----------------------------------------------------------- |
+| REQ-001   | `shared/__tests__/workspace.test.ts` (resolución de import) |
+| REQ-002   | `shared/__tests__/serviceStatus.schema.test.ts`             |
+| REQ-003   | `backend/__tests__/health.route.test.ts`                    |
+| REQ-004   | `backend/__tests__/env.test.ts`                             |
+| REQ-005   | `backend/__tests__/errorHandler.test.ts`                    |
+| REQ-006   | `lint` + `build` pasan (CI/manual)                          |
+| REQ-007   | suite Vitest + coverage report                              |
+| REQ-008   | `backend/__tests__/health.no-db.test.ts`                    |
 
 ## Next
 

@@ -63,14 +63,17 @@ destrabe-app/
 > Versiones aproximadas; se fijan exactas en `apply` con `npm install`.
 
 **Root (devDependencies):**
+
 - `typescript` ^5.6, `eslint` ^9.15, `typescript-eslint` ^8.16, `prettier` ^3.4, `vitest` ^2.1, `tsx` ^4.19, `@types/node` ^20
 
 **shared:**
+
 - `zod` ^3.23 (peer)
 - build: `tsc` (sin deps extra)
 
 **backend:**
-- `express` ^4.21 *(estable; Express 5 disponible pero 4.x tiene ecosistema de middlewares más maduro)*
+
+- `express` ^4.21 _(estable; Express 5 disponible pero 4.x tiene ecosistema de middlewares más maduro)_
 - `@prisma/client` ^5.22, `prisma` ^5.22 (dev)
 - `zod` ^3.23
 - `@destrabe/shared` `*` (workspace)
@@ -79,27 +82,32 @@ destrabe-app/
 ## 3. Configs clave
 
 ### `tsconfig.base.json`
+
 - `strict: true`, `esModuleInterop: true`, `skipLibCheck: true`
 - `moduleResolution: bundler`, `module: ESNext`, `target: ES2022`
 - `composite: true` (para project references)
 - `forceConsistentCasingInFileNames: true`
 
 ### `shared/tsconfig.json` y `backend/tsconfig.json`
+
 - `extends: ../tsconfig.base.json`
 - `references` cruzados (backend referencia a shared)
 - `outDir: ./dist` (shared), backend sin outDir en dev (tsx) — `tsc --noEmit` para typecheck
 
 ### `eslint.config.js` (flat v9)
+
 - `typescript-eslint` recommended
 - ignores: `**/dist/**`, `**/node_modules/**`, `**/.eslintignore` no existe en flat
 - regla extra: `no-unused-vars` off (usa `@typescript-eslint/no-unused-vars`)
 
 ### `.prettierrc`
+
 ```json
 { "singleQuote": true, "semi": true, "tabWidth": 2, "trailingComma": "all" }
 ```
 
 ### `vitest.config.ts` (root)
+
 - `coverage`: provider `v8`, thresholds `lines/branches/functions/statements >= 80`
 - `include`: `shared/src/**/*.ts`, `backend/src/**/*.ts`
 - `exclude`: `**/dist/**`, `**/__tests__/**` (de cobertura)
@@ -126,6 +134,7 @@ process.env ──► z.object({ NODE_ENV: z.enum([...]).default("development"),
                            PORT: z.coerce.number().int().positive() })
             ──► parse() ──► env (tipado)  |  throw ZodError (mensaje con PORT/NODE_ENV)
 ```
+
 - Importar `env` tiene side-effect de validar (fail-fast al arranque).
 - `.env.example` incluye subset de spec §9: `DATABASE_URL`, `REDIS_URL`, `NODE_ENV`, `PORT` (las necesarias para foundation; el resto se agrega en sus cambios).
 

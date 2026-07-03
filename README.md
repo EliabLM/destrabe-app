@@ -6,10 +6,10 @@ App móvil de intermediación de servicios de grúa. Modelo de oferta libre (tip
 
 ## Fases
 
-| Fase | Alcance | Estado |
-|---|---|---|
+| Fase     | Alcance                                                                                 | Estado        |
+| -------- | --------------------------------------------------------------------------------------- | ------------- |
 | **Demo** | Flujo completo solicitud → oferta → aceptación. Sin pagos reales, sin tracking en vivo. | En estructura |
-| **MVP** | Pagos reales, tracking GPS, historial, calificaciones, panel admin. | Por estimar |
+| **MVP**  | Pagos reales, tracking GPS, historial, calificaciones, panel admin.                     | Por estimar   |
 
 ## Stack
 

@@ -24,15 +24,15 @@ La spec ya decidió el stack completo (Node 20, Express+TS, Prisma+Postgres/Post
 
 ## Approaches
 
-| Decisión | Opción A | Opción B | Recomendación |
-|---|---|---|---|
-| Test runner (backend/shared) | Vitest (ESM nativo, TS sin config, watch rápido) | Jest (maduro, pero requiere ts-jest/swc, más lento) | **Vitest** — mejor DX para TDD en TS/Node |
-| Test runner (app/ RN) | Jest + jest-expo (estándar Expo) | Vitest (soporte RN pobre) | **Jest+expo** — diferido al cambio de mobile |
-| Workspace layout | `[backend, shared]` ahora | `[app, frontend, backend, shared]` ahora | **Solo backend+shared** — npm exige `package.json` en cada workspace; app/frontend sin init rompen `npm install` |
-| TS config | base + project references | config simple por paquete | **base + references** — type-check incremental y type safety cross-paquete |
-| ESLint | Flat config v9 (`eslint.config.js`) | Legacy `.eslintrc` | **Flat v9** — presente/futuro |
-| Build de `shared` | `tsc` (simple, sin deps extra) | `tsup` (dual ESM/CJS, más rápido) | **tsc** — suficiente para backend (CJS) y RN (Metro); defer dual-package |
-| Scope del cambio | root tooling + shared + backend skeleton | incluir también `app/` móvil | **Solo root+shared+backend** — cambio reviewable; mobile es otro cambio |
+| Decisión                     | Opción A                                         | Opción B                                            | Recomendación                                                                                                    |
+| ---------------------------- | ------------------------------------------------ | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Test runner (backend/shared) | Vitest (ESM nativo, TS sin config, watch rápido) | Jest (maduro, pero requiere ts-jest/swc, más lento) | **Vitest** — mejor DX para TDD en TS/Node                                                                        |
+| Test runner (app/ RN)        | Jest + jest-expo (estándar Expo)                 | Vitest (soporte RN pobre)                           | **Jest+expo** — diferido al cambio de mobile                                                                     |
+| Workspace layout             | `[backend, shared]` ahora                        | `[app, frontend, backend, shared]` ahora            | **Solo backend+shared** — npm exige `package.json` en cada workspace; app/frontend sin init rompen `npm install` |
+| TS config                    | base + project references                        | config simple por paquete                           | **base + references** — type-check incremental y type safety cross-paquete                                       |
+| ESLint                       | Flat config v9 (`eslint.config.js`)              | Legacy `.eslintrc`                                  | **Flat v9** — presente/futuro                                                                                    |
+| Build de `shared`            | `tsc` (simple, sin deps extra)                   | `tsup` (dual ESM/CJS, más rápido)                   | **tsc** — suficiente para backend (CJS) y RN (Metro); defer dual-package                                         |
+| Scope del cambio             | root tooling + shared + backend skeleton         | incluir también `app/` móvil                        | **Solo root+shared+backend** — cambio reviewable; mobile es otro cambio                                          |
 
 ## Recommendation
 

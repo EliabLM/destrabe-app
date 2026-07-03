@@ -1,7 +1,8 @@
 # Especificación Técnica — App de Intermediación de Grúas
+
 **Versión:** 1.0.0  
 **Fecha:** Junio 2026  
-**Estado:** Borrador aprobado  
+**Estado:** Borrador aprobado
 
 ---
 
@@ -26,10 +27,10 @@ Aplicación móvil de intermediación entre clientes que necesitan servicios de 
 
 ### Alcances definidos
 
-| Fase | Descripción | Plazo |
-|---|---|---|
-| **Demo** | Flujo completo solicitud → oferta → aceptación. Sin pagos reales, sin tracking en vivo. | < 1 mes |
-| **MVP** | Producto operable: pagos reales, tracking GPS, historial, calificaciones, panel admin. | Por estimar |
+| Fase     | Descripción                                                                             | Plazo       |
+| -------- | --------------------------------------------------------------------------------------- | ----------- |
+| **Demo** | Flujo completo solicitud → oferta → aceptación. Sin pagos reales, sin tracking en vivo. | < 1 mes     |
+| **MVP**  | Producto operable: pagos reales, tracking GPS, historial, calificaciones, panel admin.  | Por estimar |
 
 ### Tipos de usuario
 
@@ -46,46 +47,46 @@ La plataforma cobra al cliente y transfiere al operador descontando una comisió
 
 ### App móvil
 
-| Capa | Tecnología | Justificación |
-|---|---|---|
-| Framework | React Native (Expo SDK) | Un solo repo para iOS y Android. Expo simplifica builds y OTA updates. |
-| Lenguaje | TypeScript | Type safety end-to-end con el backend. |
-| Navegación | React Navigation v7 | Estándar de facto en React Native. |
-| Estado global | Zustand | Liviano, sin boilerplate. Suficiente para este dominio. |
-| HTTP client | Axios + interceptors | Manejo automático de refresh de token JWT. |
-| Mapas | Mapbox SDK RN (`@rnmapbox/maps`) | 50K map loads/mes gratis. 30% más barato que Google Maps a escala. |
-| Socket client | `socket.io-client` | Sync con el backend para chat y tracking. |
+| Capa          | Tecnología                       | Justificación                                                          |
+| ------------- | -------------------------------- | ---------------------------------------------------------------------- |
+| Framework     | React Native (Expo SDK)          | Un solo repo para iOS y Android. Expo simplifica builds y OTA updates. |
+| Lenguaje      | TypeScript                       | Type safety end-to-end con el backend.                                 |
+| Navegación    | React Navigation v7              | Estándar de facto en React Native.                                     |
+| Estado global | Zustand                          | Liviano, sin boilerplate. Suficiente para este dominio.                |
+| HTTP client   | Axios + interceptors             | Manejo automático de refresh de token JWT.                             |
+| Mapas         | Mapbox SDK RN (`@rnmapbox/maps`) | 50K map loads/mes gratis. 30% más barato que Google Maps a escala.     |
+| Socket client | `socket.io-client`               | Sync con el backend para chat y tracking.                              |
 
 ### Backend
 
-| Capa | Tecnología | Justificación |
-|---|---|---|
-| Runtime | Node.js 20 LTS | Estabilidad y soporte a largo plazo. |
-| Framework | Express + TypeScript | Liviano, flexible, sin overhead de NestJS para este scope. |
-| ORM | Prisma | Type-safe, migraciones declarativas, excelente DX con TypeScript. |
-| Base de datos | PostgreSQL 16 | Relacional, ACID, soporte nativo de PostGIS para geo-queries. |
-| Realtime | Socket.io (integrado en el mismo proceso Express) | Sin dependencia externa. Suficiente para el volumen inicial. |
-| Auth | Better Auth | Open source, self-hostable, agnóstico de proveedor, usa el mismo Postgres. |
-| Jobs / colas | BullMQ + Redis | Procesamiento async: timeouts de solicitud, notificaciones diferidas. |
-| Validación | Zod | Schemas compartibles con el frontend. |
+| Capa          | Tecnología                                        | Justificación                                                              |
+| ------------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
+| Runtime       | Node.js 20 LTS                                    | Estabilidad y soporte a largo plazo.                                       |
+| Framework     | Express + TypeScript                              | Liviano, flexible, sin overhead de NestJS para este scope.                 |
+| ORM           | Prisma                                            | Type-safe, migraciones declarativas, excelente DX con TypeScript.          |
+| Base de datos | PostgreSQL 16                                     | Relacional, ACID, soporte nativo de PostGIS para geo-queries.              |
+| Realtime      | Socket.io (integrado en el mismo proceso Express) | Sin dependencia externa. Suficiente para el volumen inicial.               |
+| Auth          | Better Auth                                       | Open source, self-hostable, agnóstico de proveedor, usa el mismo Postgres. |
+| Jobs / colas  | BullMQ + Redis                                    | Procesamiento async: timeouts de solicitud, notificaciones diferidas.      |
+| Validación    | Zod                                               | Schemas compartibles con el frontend.                                      |
 
 ### Servicios externos
 
-| Servicio | Proveedor | Uso |
-|---|---|---|
-| Push notifications | FCM (Firebase Cloud Messaging) | Gratuito, ilimitado. Solo se usa el servicio de push, no la plataforma Firebase. |
-| OTP SMS | Plivo | 30-40% más barato que Twilio. Verify API sin costo por autenticación. |
-| Pagos | Mercado Pago Marketplace | Split automático plataforma/operador. Cobertura Colombia. |
-| Email transaccional | Resend (free tier: 3K emails/mes) | Confirmaciones, recuperación de cuenta. |
+| Servicio            | Proveedor                         | Uso                                                                              |
+| ------------------- | --------------------------------- | -------------------------------------------------------------------------------- |
+| Push notifications  | FCM (Firebase Cloud Messaging)    | Gratuito, ilimitado. Solo se usa el servicio de push, no la plataforma Firebase. |
+| OTP SMS             | Plivo                             | 30-40% más barato que Twilio. Verify API sin costo por autenticación.            |
+| Pagos               | Mercado Pago Marketplace          | Split automático plataforma/operador. Cobertura Colombia.                        |
+| Email transaccional | Resend (free tier: 3K emails/mes) | Confirmaciones, recuperación de cuenta.                                          |
 
 ### Infraestructura demo
 
-| Componente | Proveedor |
-|---|---|
-| VPS | Hetzner CX22 (2 vCPU, 4GB RAM, ~€4.5/mes) |
-| Containerización | Docker + Docker Compose |
-| Reverse proxy | Caddy (HTTPS automático vía Let's Encrypt) |
-| CI/CD | GitHub Actions → SSH deploy |
+| Componente       | Proveedor                                  |
+| ---------------- | ------------------------------------------ |
+| VPS              | Hetzner CX22 (2 vCPU, 4GB RAM, ~€4.5/mes)  |
+| Containerización | Docker + Docker Compose                    |
+| Reverse proxy    | Caddy (HTTPS automático vía Let's Encrypt) |
+| CI/CD            | GitHub Actions → SSH deploy                |
 
 ---
 
@@ -208,23 +209,24 @@ gruas-app/
 
 ### Backend — módulos principales
 
-| Módulo | Ruta | Responsabilidad |
-|---|---|---|
-| Auth | `POST /auth/*` | Better Auth handlers: registro, login OTP, refresh token, logout. |
-| Servicios | `POST /services` | Crear solicitud de grúa (cliente). |
-| | `GET /services/nearby` | Listar solicitudes cercanas al operador (PostGIS). |
-| | `PATCH /services/:id/status` | Cambiar estado: `pending → active → completed → cancelled`. |
-| Cotizaciones | `POST /services/:id/quotes` | Operador envía cotización. |
-| | `POST /quotes/:id/accept` | Cliente acepta cotización → dispara pago. |
-| Pagos | `POST /payments/intent` | Crear intención de pago en Mercado Pago. |
-| | `POST /payments/webhook` | Webhook de confirmación MP → activa servicio. |
-| Operadores | `GET /operators/profile` | Perfil, historial, rating. |
-| | `PATCH /operators/availability` | Toggle disponible/no disponible. |
-| Admin | `GET /admin/*` | Panel de administración (MVP). |
+| Módulo       | Ruta                            | Responsabilidad                                                   |
+| ------------ | ------------------------------- | ----------------------------------------------------------------- |
+| Auth         | `POST /auth/*`                  | Better Auth handlers: registro, login OTP, refresh token, logout. |
+| Servicios    | `POST /services`                | Crear solicitud de grúa (cliente).                                |
+|              | `GET /services/nearby`          | Listar solicitudes cercanas al operador (PostGIS).                |
+|              | `PATCH /services/:id/status`    | Cambiar estado: `pending → active → completed → cancelled`.       |
+| Cotizaciones | `POST /services/:id/quotes`     | Operador envía cotización.                                        |
+|              | `POST /quotes/:id/accept`       | Cliente acepta cotización → dispara pago.                         |
+| Pagos        | `POST /payments/intent`         | Crear intención de pago en Mercado Pago.                          |
+|              | `POST /payments/webhook`        | Webhook de confirmación MP → activa servicio.                     |
+| Operadores   | `GET /operators/profile`        | Perfil, historial, rating.                                        |
+|              | `PATCH /operators/availability` | Toggle disponible/no disponible.                                  |
+| Admin        | `GET /admin/*`                  | Panel de administración (MVP).                                    |
 
 ### App móvil — pantallas principales
 
 **Flujo Cliente:**
+
 ```
 Onboarding → Registro/Login (OTP) → Home (mapa)
   → Nueva solicitud → Tipo + ubicación + descripción
@@ -234,6 +236,7 @@ Onboarding → Registro/Login (OTP) → Home (mapa)
 ```
 
 **Flujo Operador:**
+
 ```
 Onboarding → Registro/Login (OTP) → Dashboard
   → Toggle disponible → Notificación nueva solicitud
@@ -480,16 +483,16 @@ socket.emit('location:update', {
   serviceId: 'srv_123',
   lat: 10.391,
   lng: -75.479,
-  timestamp: Date.now()
-})
+  timestamp: Date.now(),
+});
 
 // Backend retransmite al room del servicio
-io.to(`service:srv_123`).emit('operator:location', payload)
+io.to(`service:srv_123`).emit('operator:location', payload);
 
 // Cliente escucha
 socket.on('operator:location', ({ lat, lng }) => {
   // actualiza marcador en mapa Mapbox
-})
+});
 ```
 
 ---
@@ -515,7 +518,7 @@ services:
       - postgres
       - redis
     ports:
-      - "3000:3000"
+      - '3000:3000'
 
   postgres:
     image: postgres:16-alpine
@@ -640,15 +643,18 @@ La app debe correr en iOS y Android. El equipo tiene experiencia en JavaScript/T
 Usar React Native con Expo SDK.
 
 **Consecuencias positivas:**
+
 - Un solo codebase para ambas plataformas.
 - Expo simplifica builds nativos, OTA updates y gestión de permisos (GPS, notificaciones).
 - Expo Go permite testing en dispositivo sin compilar.
 
 **Consecuencias negativas:**
+
 - Algunas librerías nativas requieren `expo prebuild` y salir del managed workflow.
 - Mapbox SDK (`@rnmapbox/maps`) requiere prebuild. Se asume desde el inicio.
 
 **Alternativas descartadas:**
+
 - Flutter: curva de aprendizaje en Dart.
 - Nativo iOS/Android: costo de desarrollo x2.
 
@@ -666,12 +672,14 @@ El backend cubre una API REST y WebSockets para una app de intermediación. El s
 Usar Express con TypeScript directamente, sin framework de alto nivel.
 
 **Consecuencias positivas:**
+
 - Sin overhead de decoradores, módulos e inyección de dependencias de NestJS.
 - Arranque más rápido para la demo.
 - Más fácil de entender para cualquier desarrollador Node.js.
 - Socket.io se integra nativamente sin adaptadores adicionales.
 
 **Consecuencias negativas:**
+
 - Requiere disciplina manual en la organización del código (sin estructura impuesta).
 - Si el proyecto crece significativamente, puede ser conveniente migrar a NestJS.
 
@@ -692,6 +700,7 @@ La app requiere autenticación por número de teléfono (OTP SMS). Se priorizó 
 Usar Better Auth con Postgres propio como store de usuarios.
 
 **Consecuencias positivas:**
+
 - Open source, sin pricing por MAU.
 - Los datos de usuarios viven en el Postgres de la aplicación desde el día 1 — no hay migración futura.
 - Compatible con Express mediante middleware estándar.
@@ -699,10 +708,12 @@ Usar Better Auth con Postgres propio como store de usuarios.
 - JWTs estándar RS256 — compatibles con cualquier validador futuro (PostgREST, otros servicios).
 
 **Consecuencias negativas:**
+
 - No tiene SDK oficial de React Native. El cliente móvil consume la REST API de Better Auth directamente, lo que requiere implementar manualmente el flujo de token refresh (~1-2 días de trabajo adicional en la demo).
 - Proyecto más joven que alternativas como SuperTokens.
 
 **Alternativas descartadas:**
+
 - **Supabase Auth:** lock-in al ecosistema. Migración de hashes de contraseñas es compleja.
 - **Clerk:** SaaS puro, no self-hostable. $0.02/MAU, a 100K usuarios son ~$2,000/mes solo en auth.
 - **Firebase Auth:** lock-in a Google Cloud. Sin portabilidad.
@@ -722,14 +733,17 @@ La app necesita dos canales en tiempo real: tracking GPS del operador y chat cli
 Integrar Socket.io en el mismo proceso del servidor Express. Redis como adapter para escalabilidad futura.
 
 **Consecuencias positivas:**
+
 - Sin servicio adicional que operar en la demo.
 - Latencia mínima (mismo proceso, sin red entre HTTP y WS).
 - El adapter de Redis está disponible como `@socket.io/redis-adapter` — activable sin cambio de código cuando se escale horizontalmente.
 
 **Consecuencias negativas:**
+
 - Si el tráfico WebSocket crece mucho, puede competir con el CPU del proceso HTTP. Mitigación: escalar a múltiples instancias con el adapter Redis.
 
 **Alternativas descartadas:**
+
 - **Supabase Realtime:** introduce dependencia externa para un canal; los datos de chat tendrían que sincronizarse entre dos sistemas.
 - **Ably:** costo a escala ($0.00026/mensaje), dependencia de tercero innecesaria dado que Socket.io resuelve el caso de uso.
 
@@ -747,17 +761,20 @@ La app requiere: mapa interactivo, geocoding de dirección a coordenadas, y rout
 Usar Mapbox con el SDK oficial de React Native (`@rnmapbox/maps`).
 
 **Consecuencias positivas:**
+
 - 50,000 map loads/mes gratuitos — suficiente para demo y primeras semanas de MVP.
 - Geocoding: $0.75/1,000 requests vs $5/1,000 de Google Maps (83% más barato).
 - Mapa Matching API para snap GPS a carreteras: escala por vehículo activo, no por carga de mapa.
 - Google Maps puede activarse en el futuro cambiando solo el provider en la capa de servicios.
 
 **Consecuencias negativas:**
+
 - Cobertura de POIs en Colombia es inferior a Google Maps.
 - `@rnmapbox/maps` requiere `expo prebuild` — no funciona en Expo Go.
 - Desde agosto 2025, el Search Box de Mapbox cobra por keystroke sin debounce. **Obligatorio implementar debounce ≥ 300ms en cualquier campo de búsqueda de dirección.**
 
 **Alternativas descartadas:**
+
 - **Google Maps:** más costoso a escala. La plataforma busca independencia de Google.
 - **HERE Maps:** free tier más generoso (250K requests/mes) pero SDK React Native menos maduro.
 
@@ -775,16 +792,19 @@ La plataforma retiene una comisión y transfiere el resto al operador. Se requie
 Usar Mercado Pago con el producto Marketplace para split automático.
 
 **Consecuencias positivas:**
+
 - Cobertura nativa en Colombia (PSE, tarjeta crédito/débito).
 - Split automático plataforma/operador sin transferencias manuales.
 - Checkout Pro disponible como SDK para React Native.
 - Comisión de MP: ~3.49% + IVA por transacción (competitivo en LATAM).
 
 **Consecuencias negativas:**
+
 - El producto Marketplace requiere aprobación de Mercado Pago Colombia, proceso que puede tomar 1-2 semanas. **Debe iniciarse en paralelo al desarrollo, no al final.**
 - Webhooks de confirmación de pago pueden tener latencia de segundos — el servicio no se activa instantáneamente tras el pago.
 
 **Alternativas descartadas:**
+
 - **Stripe:** sin soporte PSE en Colombia. Poco reconocido por el usuario colombiano.
 - **Wompi / Kushki:** no tienen split automático nativo tipo Marketplace.
 
@@ -802,11 +822,13 @@ El proyecto tiene dos apps (mobile, backend) que comparten tipos TypeScript y sc
 Usar monorepo con npm workspaces y un paquete `@gruas/shared` para tipos y schemas compartidos.
 
 **Consecuencias positivas:**
+
 - Un solo `git clone` y `npm install` configura todo el proyecto.
 - Los tipos del API (request/response bodies) se definen una vez y se usan en mobile y backend — errores de contrato detectados en compilación, no en runtime.
 - CI/CD más simple: un solo pipeline.
 
 **Consecuencias negativas:**
+
 - Builds más lentos si no se configura caché correctamente.
 - Requiere disciplina para no crear dependencias circulares entre paquetes.
 
@@ -824,12 +846,14 @@ La autenticación es exclusivamente por número de teléfono. Se necesita un pro
 Usar Plivo para envío de OTP.
 
 **Consecuencias positivas:**
+
 - 30-40% más barato que Twilio en tarifa base.
 - Verify API sin costo por autenticación — solo se paga el SMS entregado.
 - Fraud Shield incluido sin costo adicional.
 - API compatible con Twilio — migración trivial si es necesario.
 
 **Consecuencias negativas:**
+
 - Menor reconocimiento de marca que Twilio (sin impacto técnico).
 - Soporte en español limitado.
 
@@ -838,4 +862,4 @@ Evaluar en MVP si el OTP por WhatsApp tiene mejor tasa de entrega en Colombia (~
 
 ---
 
-*Documento generado para uso con Claude Code. Mantener actualizado ante cualquier cambio de decisión arquitectónica.*
+_Documento generado para uso con Claude Code. Mantener actualizado ante cualquier cambio de decisión arquitectónica._
