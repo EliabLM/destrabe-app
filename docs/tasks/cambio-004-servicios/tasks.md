@@ -19,8 +19,12 @@
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: feature-branch-unique
 400-line budget risk: High
+
+> **Decisión del usuario:** Feature branch única (`feature/cambio-004-servicios`)
+> con commits por grupo lógico (T1-T6, T7-T9, T10-T11), merge --no-ff a develop
+> al archive. Mismo flujo que cambio-001/002/003.
 
 ---
 
