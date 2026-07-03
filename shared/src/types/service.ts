@@ -5,3 +5,8 @@ export enum ServiceStatus {
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
+
+export enum ServiceType {
+  BREAKDOWN = 'BREAKDOWN',
+  TRANSFER = 'TRANSFER',
+}
