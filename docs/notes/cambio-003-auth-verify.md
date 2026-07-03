@@ -6,7 +6,13 @@
 **Verificador:** sdd-verify executor (Standard TDD mode, repo-local)
 **Fecha:** 2026-07-03
 **TDD mode:** Standard (NO strict TDD)
-**Veredicto final:** **FAIL** (2 CRITICAL — gate commands exit non-zero)
+**Veredicto final:** **PASS WITH WARNINGS** (C1/C2/W1 RESOLVED post-fix; W2 desviaciones aceptadas documentadas)
+
+> **Re-verify post-fix:** la primera pasada arrojó FAIL por 2 CRITICAL (C1, C2) + W1 (prettier).
+> El orchestrator aplicó S1 (mover `auth.otp.flow.test.ts` a `backend/__tests__/db/`) y S2
+> (ampliar `resetDb()` + helper `seedUser()` para sembrar `User` padre en db tests de cambio-002),
+> y `npm run format` (W1). Esta segunda pasada re-ejecutó los gate commands canónicos y los
+> encontró verdes. Commit de los fixes: `462d974`.
 
 ---
 
@@ -18,7 +24,7 @@
 | specs         | done      | `docs/specs/cambio-003-auth/spec.md` — 10 REQs (REQ-001..REQ-010) |
 | design        | done      | `docs/designs/cambio-003-auth/design.md` leído                    |
 | tasks         | done      | 12/12 tareas completadas (`docs/tasks/cambio-003-auth/tasks.md`)  |
-| applyProgress | done      | Commits hasta `a23aaea` (T1..T12)                                 |
+| applyProgress | done      | Commits hasta `a23aaea` (T1..T12) + fix `462d974`                 |
 | verifyReport  | this file |                                                                   |
 
 ## 2. Task completion (correctness)
@@ -40,122 +46,93 @@
 
 **Total:** 12/12 completadas, 0 pendientes. Objective task completion: ✅ DONE.
 
-## 3. Build / type-check / lint / format evidence
+## 3. Build / type-check / lint / format evidence (post-fix)
 
-| Comando                                     | Resultado | Notas                                      |
-| ------------------------------------------- | --------- | ------------------------------------------ |
-| `npm run build -w @destrabe/shared`         | ✅ exit 0 | shared compila limpio                      |
-| `npx tsc --noEmit -p backend/tsconfig.json` | ✅ exit 0 | backend type-check limpio                  |
-| `npm run lint` (`eslint .`)                 | ✅ exit 0 | sin warnings                               |
-| `npx prettier --check .`                    | ❌ exit 1 | **29 archivos con issues de formato** (W1) |
+| Comando                                       | Resultado | Notas                                           |
+| --------------------------------------------- | --------- | ----------------------------------------------- |
+| `npm run build -w @destrabe/shared`           | ✅ exit 0 | shared compila limpio                           |
+| `npx tsc --noEmit -p backend/tsconfig.json`   | ✅ exit 0 | backend type-check limpio                       |
+| `npm run lint` (`eslint .`)                   | ✅ exit 0 | sin warnings                                    |
+| `npm run format:check` (`prettier --check .`) | ✅ exit 0 | All files use Prettier code style (W1 RESOLVED) |
 
-### Prettier — archivos con issues de formato (W1)
-
-```
-backend/__tests__/auth.mount.test.ts
-backend/__tests__/auth.otp.flow.test.ts
-backend/__tests__/db/{cascade,enum-constraint,relations}.test.ts
-backend/__tests__/db/helpers.ts
-backend/__tests__/env.test.ts
-backend/__tests__/middleware.auth.test.ts
-backend/__tests__/plivo.test.ts
-backend/src/lib/env.ts
-backend/src/lib/plivo.ts
-backend/src/middleware/auth.ts
-docs/adr/ADR-003-better-auth.md
-infra/docker-compose.dev.yml
-package.json
-shared/__tests__/{enums.schema,no-prisma-import}.test.ts
-shared/src/schemas/{auth,index,payment,service,user}.schema.ts
-shared/src/types/{auth,index,payment,service,user}.ts
-vitest.config.ts
-vitest.db.config.ts
-```
-
-`npm run format` (== `prettier --write .`) lo resolvería. No se aplicó en verify (no se fixea, solo se reporta).
-
-## 4. Test / coverage evidence
+## 4. Test / coverage evidence (post-fix)
 
 ### 4.1 `npm test` (default unit suite) — SIN `DATABASE_URL` en entorno
 
 ```
-Test Files  1 failed | 12 passed (13)
-Tests       3 failed | 37 passed (40)
-❯ backend/__tests__/auth.otp.flow.test.ts (4 tests | 3 failed)
-   × send-otp → 2xx y captura el OTP vía mock de Plivo (REQ-006/010)
-        AssertionError: expected 500 to be less than 300
-   × flujo completo send → verify → get-session (REQ-007)
-        AssertionError: expected 500 to be less than 300
-   × sign-out limpia la cookie y la sesión queda null (REQ-010)
-        TypeError: Cannot read properties of undefined (reading 'code')
-Error Better Auth: PrismaClientInitializationError:
-  "Environment variable not found: DATABASE_URL" (schema.prisma:7)
+Test Files  12 passed (12)
+Tests       36 passed (36)
+✓ backend/__tests__/plivo.test.ts (2)
+✓ backend/__tests__/env.test.ts (10)
+✓ shared/__tests__/no-prisma-import.test.ts (1)
+✓ backend/__tests__/middleware.auth.test.ts (4)
+✓ backend/__tests__/shared.integration.test.ts (2)
+✓ shared/__tests__/serviceStatus.schema.test.ts (3)
+✓ shared/__tests__/enums.schema.test.ts (6)
+✓ backend/__tests__/errorHandler.test.ts (1)
+✓ backend/__tests__/auth.config.test.ts (3)
+✓ backend/__tests__/notFound.test.ts (1)
+✓ backend/__tests__/health.route.test.ts (1)
+✓ backend/__tests__/auth.mount.test.ts (2)
 ```
 
-→ **`npm test` exit non-zero (CRITICAL C2).** El error no es de conexión (Postgres está up); el `PrismaClient` singleton de `backend/src/lib/prisma.ts` (importado transitivamente vía `auth.ts`) captura `DATABASE_URL` al construirse, antes de que el test fije `process.env.DATABASE_URL` (hoisting de imports).
+→ **`npm test` exit 0 (C2 RESOLVED).** Tras mover `auth.otp.flow.test.ts` a
+`backend/__tests__/db/`, el exclude `**/__tests__/db/**` de `vitest.config.ts` lo omite del
+suite unit canónico. El test db-dependiente ya no rompe el contrato "unit tests no requieren DB".
 
-### 4.2 `npm test` — CON `DATABASE_URL` exportada + Postgres up
-
-```
-Test Files  13 passed (13)
-Tests       40 passed (40)
-✓ backend/__tests__/auth.otp.flow.test.ts (4 tests)
-```
-
-Con el entorno adecuado, los 40 tests pasan.
-
-### 4.3 `npm run test:db` (suite db cambio-002) — CON `DATABASE_URL` + Postgres up
+### 4.2 `npm run test:db` — CON `DATABASE_URL` + Postgres up
 
 ```
-Test Files  3 failed (3)
-Tests       6 failed (6)
-→ backend/__tests__/db/{cascade,enum-constraint,relations}.test.ts
-
-Foreign key constraint violated: `ClientProfile_userId_fkey (index)`
-  at prisma.clientProfile.create({ data: { userId: 'u-c' } })  // relations.test.ts:93
-  (análogo OperatorProfile / Message en cascade y enum-constraint)
+Test Files  4 passed (4)
+Tests       10 passed (10)
+✓ backend/__tests__/db/auth.otp.flow.test.ts (4)
+✓ backend/__tests__/db/relations.test.ts (2)
+✓ backend/__tests__/db/cascade.test.ts (2)
+✓ backend/__tests__/db/enum-constraint.test.ts (2)
 ```
 
-→ **`npm run test:db` exit non-zero (CRITICAL C1).** La migración `add_auth_identity` (T4/REQ-001) convirtió `ClientProfile.userId`, `OperatorProfile.userId`, `Message.senderId` en **FKs reales** a `User.id` (`onDelete: Cascade`). Los tests db de cambio-002 (preexistentes) insertan perfiles/mensajes con `userId` sintético (ej. `'u-c'`) **sin** un `User` padre, violando la FK. **Regresión introducida por cambio-003**: la suite db de cambio-002 no fue actualizada para sembrar un `User` padre antes de insertar los perfiles.
+→ **`npm run test:db` exit 0 (C1 RESOLVED).** `resetDb()` ampliado con
+`Verification/Account/Session/User` (TRUNCATE CASCADE) y helper `seedUser()` siembra un `User`
+padre en los 3 db tests de cambio-002 antes de crear perfiles/mensajes, satisfaciendo las FKs
+reales introducidas por `add_auth_identity`. El flujo OTP end-to-end (T9) sigue verde.
 
-### 4.4 Coverage (`npm test -- --coverage` con env)
+### 4.3 Coverage (`npm test -- --coverage` con env)
 
 ```
-All files        | % Stmts 97.98 | % Branch 92.3 | % Funcs 100 | % Lines 97.98 |
-backend/src/app.ts              100 / 100 / 100 / 100
-backend/src/lib/auth.ts         100 / 100 / 100 / 100
-backend/src/lib/env.ts          100 / 100 / 100 / 100
-backend/src/lib/plivo.ts        100 / 100 / 100 / 100
-backend/src/middleware/auth.ts  87.09 / 71.42 / 100 / 87.09  (uncovered 63-66)
-backend/src/middleware/errorHandler.ts  100
-backend/src/middleware/notFound.ts      100
-backend/src/routes/health.routes.ts     100
-shared/src/schemas/*            100
-shared/src/types/*              (auth.ts 0 — types-only, no runtime coverage)
+All files        | % Stmts 98 | % Branch 91.66 | % Funcs 80 | % Lines 98
+ backend/src/app.ts              100 / 100 / 100 / 100
+ backend/src/lib/auth.ts         100 / 100 / 0 / 100
+ backend/src/lib/env.ts          100 / 100 / 100 / 100
+ backend/src/lib/plivo.ts        100 / 100 / 100 / 100
+ backend/src/middleware/auth.ts  87.09 / 71.42 / 100 / 87.09  (uncovered 63-66)
+ backend/src/middleware/errorHandler.ts  100
+ backend/src/middleware/notFound.ts      100
+ backend/src/routes/health.routes.ts     100
+ shared/src/schemas/*            100
+ shared/src/types/auth.ts        0 (types-only, no runtime coverage)
 ```
 
-Líneas 97.98% ≥ 80%, branch 92.3% ≥ 80%, functions 100% ≥ 80%, statements 97.98% ≥ 80%.
-**Threshold global: PASS** (unit-only; la suite db no se incluyó por estar rota — coverage reportado solo para unit).
+Líneas 98% ≥ 80%, branch 91.66% ≥ 80%, functions 80% ≥ 80%, statements 98% ≥ 80%.
+**Threshold global: PASS.**
 
 ## 5. Spec compliance matrix (REQ → covering test → runtime result)
 
-| REQ     | Escenario                                                                  | Covering test / evidence                                         | Result runtime                                                                                                              | Status                         |
-| ------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| REQ-001 | `prisma validate` pasa                                                     | `npx prisma validate`                                            | exit 0 — "schema is valid 🚀"                                                                                               | ✅ PASS                        |
-| REQ-001 | ClientProfile/OperatorProfile/Message FK → User Cascade                    | schema inspection                                                | `@relation(...) onDelete: Cascade` confirmado en las 3 FKs (schema.prisma)                                                  | ✅ PASS (inspection)           |
-| REQ-001 | `phone @unique` + `role UserRole`                                          | schema inspection                                                | `phoneNumber String? @unique` + `role UserRole @default(CLIENT)` — **desviación** `phone`→`phoneNumber` (nullable) — ver W2 | ✅ PASS (deviation documented) |
-| REQ-002 | existe migración `add_auth_identity` + migración aplicada                  | `prisma migrate status` + glob migrations                        | `20260703164734_add_auth_identity/migration.sql` existe; "Database schema is up to date!"                                   | ✅ PASS                        |
-| REQ-003 | `auth` exportado, `auth.handler` función, `auth.api` phoneNumber           | `backend/__tests__/auth.config.test.ts`                          | 3/3 PASS (con env)                                                                                                          | ✅ PASS                        |
-| REQ-004 | envs auth válidos + error claro si `BETTER_AUTH_SECRET` ausente            | `backend/__tests__/env.test.ts`                                  | 10/10 PASS                                                                                                                  | ✅ PASS                        |
-| REQ-005 | Plivo dev (log) + Plivo real (mock messages.create)                        | `backend/__tests__/plivo.test.ts`                                | 2/2 PASS                                                                                                                    | ✅ PASS                        |
-| REQ-006 | `POST /phone-number/send-otp` 2xx + 4xx sin phoneNumber + get-session null | `backend/__tests__/auth.otp.flow.test.ts` + `auth.mount.test.ts` | 4/4 + 2/2 PASS (con `DATABASE_URL` exportada) — nota C2 sobre dependencia de env                                            | ✅ PASS (env-dependent)        |
-| REQ-007 | flujo end-to-end send → verify → cookie → get-session                      | `backend/__tests__/auth.otp.flow.test.ts`                        | 1/1 "flujo completo send → verify → get-session" PASS (con env)                                                             | ✅ PASS (env-dependent)        |
-| REQ-008 | requireAuth sin cookie → 401 `UNAUTHORIZED`; con cookie → 200 + `req.user` | `backend/__tests__/middleware.auth.test.ts`                      | 4/4 PASS                                                                                                                    | ✅ PASS                        |
-| REQ-009 | requireRole(OPERATOR) CLIENT→403 `FORBIDDEN`; OPERATOR→200                 | `backend/__tests__/middleware.auth.test.ts`                      | 4/4 PASS                                                                                                                    | ✅ PASS                        |
-| REQ-010 | tests OTP no llaman Plivo real (vi.mock captura OTP)                       | `backend/__tests__/auth.otp.flow.test.ts`                        | 4/4 PASS (mock `sendOtp` captura `code`, no llamada Plivo)                                                                  | ✅ PASS                        |
+| REQ     | Escenario                                                                  | Covering test / evidence                                            | Result runtime                                                                                                              | Status                              |
+| ------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| REQ-001 | `prisma validate` pasa                                                     | `npx prisma validate`                                               | exit 0 — "schema is valid 🚀"                                                                                               | ✅ COMPLIANT                        |
+| REQ-001 | ClientProfile/OperatorProfile/Message FK → User Cascade                    | schema inspection                                                   | `@relation(...) onDelete: Cascade` confirmado en las 3 FKs (schema.prisma)                                                  | ✅ COMPLIANT (inspection)           |
+| REQ-001 | `phone @unique` + `role UserRole`                                          | schema inspection                                                   | `phoneNumber String? @unique` + `role UserRole @default(CLIENT)` — **desviación** `phone`→`phoneNumber` (nullable) — ver W2 | ✅ COMPLIANT (deviation documented) |
+| REQ-002 | existe migración `add_auth_identity` + migración aplicada                  | `prisma migrate status` + glob migrations                           | `20260703164734_add_auth_identity/migration.sql` existe; "Database schema is up to date!"                                   | ✅ COMPLIANT                        |
+| REQ-003 | `auth` exportado, `auth.handler` función, `auth.api` phoneNumber           | `backend/__tests__/auth.config.test.ts`                             | 3/3 PASS                                                                                                                    | ✅ COMPLIANT                        |
+| REQ-004 | envs auth válidos + error claro si `BETTER_AUTH_SECRET` ausente            | `backend/__tests__/env.test.ts`                                     | 10/10 PASS                                                                                                                  | ✅ COMPLIANT                        |
+| REQ-005 | Plivo dev (log) + Plivo real (mock messages.create)                        | `backend/__tests__/plivo.test.ts`                                   | 2/2 PASS                                                                                                                    | ✅ COMPLIANT                        |
+| REQ-006 | `POST /phone-number/send-otp` 2xx + 4xx sin phoneNumber + get-session null | `backend/__tests__/db/auth.otp.flow.test.ts` + `auth.mount.test.ts` | 4/4 + 2/2 PASS (en `test:db`)                                                                                               | ✅ COMPLIANT                        |
+| REQ-007 | flujo end-to-end send → verify → cookie → get-session                      | `backend/__tests__/db/auth.otp.flow.test.ts`                        | 1/1 "flujo completo send → verify → get-session" PASS                                                                       | ✅ COMPLIANT                        |
+| REQ-008 | requireAuth sin cookie → 401 `UNAUTHORIZED`; con cookie → 200 + `req.user` | `backend/__tests__/middleware.auth.test.ts`                         | 4/4 PASS                                                                                                                    | ✅ COMPLIANT                        |
+| REQ-009 | requireRole(OPERATOR) CLIENT→403 `FORBIDDEN`; OPERATOR→200                 | `backend/__tests__/middleware.auth.test.ts`                         | 4/4 PASS                                                                                                                    | ✅ COMPLIANT                        |
+| REQ-010 | tests OTP no llaman Plivo real (vi.mock captura OTP)                       | `backend/__tests__/db/auth.otp.flow.test.ts`                        | 4/4 PASS (mock `sendOtp` captura `code`, no llamada Plivo)                                                                  | ✅ COMPLIANT                        |
 
-**Compliance por REQ: 10/10 COMPLIANT** (todos con evidence runtime cuando el entorno está listo).
-**Advertencia estructural:** los gate commands `npm test` (default) y `npm run test:db` no producen verde en su forma documentada — ver CRITICAL C1/C2.
+**Compliance por REQ: 10/10 COMPLIANT** con evidence runtime de los gate canónicos.
 
 ## 6. Design coherence table
 
@@ -175,61 +152,49 @@ Líneas 97.98% ≥ 80%, branch 92.3% ≥ 80%, functions 100% ≥ 80%, statements
 
 **Design coherence:** COHERENT con desviaciones documentadas en ADR-003 (phoneNumber column, verifyOTP omitido, signUpOnVerification añadido, mount vía `router.use`). Ninguna desviación rompe un REQ.
 
-## 7. Issues por severidad
+## 7. Issues por severidad (post-fix)
 
 ### CRITICAL
 
-**C1 — `npm run test:db` RED: la suite db de cambio-002 quedó rota por las FK de `add_auth_identity`**
+**None.** C1 y C2 RESOLVED en commit `462d974`.
 
-- **Síntoma:** `npm run test:db` (con `DATABASE_URL` exportada + Postgres up) → 3 archivos / 6 tests FAIL con `Foreign key constraint violated: ClientProfile_userId_fkey`.
-- **Root cause:** la migración `add_auth_identity` (T4, REQ-001) convirtió `ClientProfile.userId`, `OperatorProfile.userId`, `Message.senderId` en **FKs reales** a `User.id` (`onDelete: Cascade`). Los tests db preexistentes de cambio-002 (`backend/__tests__/db/cascade.test.ts`, `relations.test.ts`, `enum-constraint.test.ts`) insertan perfiles/mensajes con `userId` sintético (p.ej. `'u-c'`) y **sin** un `User` padre → el INSERT viola la FK.
-- **Regresión introducida por cambio-003:** la suite db de cambio-002 no fue actualizada para crear un `User` padre antes de crear perfiles/mensajes (ni para incluir `User` en el `TRUNCATE ... CASCADE` de `helpers.ts:resetDb`).
-- **Comando de evidencia:** `DATABASE_URL='postgresql://destrabe:destrabe@localhost:5432/destrabe_db' npm run test:db` → exit 1, 6 failed.
-- **Gate:** `npm run test:db` exits non-zero → **CRITICAL**.
-
-**C2 — `npm test` (default unit) RED sin `DATABASE_URL` en el entorno**
-
-- **Síntoma:** `npm test` (sin `DATABASE_URL` exportada, Postgres up) → 1 archivo / 3 tests FAIL con `PrismaClientInitializationError: Environment variable not found: DATABASE_URL` y respuestas `500` en `/phone-number/send-otp`.
-- **Root cause:** `backend/__tests__/auth.otp.flow.test.ts` (test db smoke que cubre REQ-006/007/010) está bajo `backend/__tests__/` (NO bajo `backend/__tests__/db/`). `vitest.config.ts` incluye `backend/__tests__/**/*.test.ts` y solo excluye `**/__tests__/db/**`, así que el default `npm test` levanta este test. El test fija `process.env.DATABASE_URL` en su cuerpo (líneas 35-37), pero el `PrismaClient` singleton en `backend/src/lib/prisma.ts` (importado transitivamente vía `auth.ts` → `createApp`) se construye durante el hoisting de imports, antes de que la asignación de `process.env` del test se ejecute → captura `DATABASE_URL=undefined`. Mejor-Auth entonces falla al persistir el `Verification` con el error de env. El test solo pasa cuando `DATABASE_URL` se inyecta en el proceso que lanza vitest.
-- **Evidencia:]
-  - Sin env: `npm test` → 3 failed / 37 passed, exit 1.
-  - Con env (`DATABASE_URL=... npm test`): 40 passed, exit 0.
-- **ADR-003 §Cojecuencias negativas** ya documenta este gotcha del singleton de prisma, pero la configuración de tests no lo mitiga (el test sigue bajo `backend/__tests__/` en lugar de `backend/__tests__/db/`, y no hay setupFile que cargue `.env` para el default run).
-- **Spec contract:** la spec encabeza "Unit tests no requieren DB; db y flujo OTP requieren Postgres up (`npm run db:up`)". El default `npm test` viola ese contrato al incluir `auth.otp.flow.test.ts` (que sí requiere DB).
-- **Gate:** el comando unit canónico exits non-zero en su forma documentada → **CRITICAL**.
+- **C1 (RESOLVED)** — `npm run test:db` RED por FK regression. Fix: `resetDb()` ampliado con tablas auth + helper `seedUser()` siembra `User` padre en los db tests de cambio-002.
+- **C2 (RESOLVED)** — `npm test` (unit) RED sin `DATABASE_URL`. Fix: `auth.otp.flow.test.ts` movido a `backend/__tests__/db/` (excluido del suite unit, incluido en `test:db`).
 
 ### WARNING
-
-**W1 — `prettier --check .` falla (29 archivos con issues de formato)**
-
-- `npx prettier --check .` → exit 1, 29 archivos. `npm run format` los arreglaría. No se aplicó en verify.
 
 **W2 — Desviaciones de spec aceptadas (documentadas en ADR-003)**
 
 - **`phone` → `phoneNumber`:** spec REQ-001/§6 exigía `phone String @unique` (non-nullable). El plugin `phoneNumber` de Better Auth impone el nombre `phoneNumber` (PascalCase, no configurable) y se dejó nullable (`String?`) para soportar registro solo-por-email futuro. Documentado en ADR-003 §phoneNumber + comentario en `schema.prisma:158-168` + normalización a `phone` en `req.user` (T7/T8).
-- **Rutas de endpoints:** spec §7.1 usaba `/phone/send-otp` y `/phone/verify-otp`; el plugin expone `/phone-number/send-otp` y `/phone-number/verify`. Documentado en ADR-003 §Endpoints + header de `auth.otp.flow.test.ts`.
+- **Rutas de endpoints:** spec §7.1 usaba `/phone/send-otp` y `/phone/verify-otp`; el plugin expone `/phone-number/send-otp` y `/phone-number/verify`. Documentado en ADR-003 §Endpoints + header de `db/auth.otp.flow.test.ts`.
 - **`verifyOTP` omitido** (design §3 proponía `() => false`); **`signUpOnVerification` añadido**; **montaje** vía `router.use('/api/auth', authHandler)` en lugar de `app.all('/api/auth/*', ...)`. Todos documentados en ADR-003.
-- El orchestrator indicó explícitamente que estas desviaciones están documentadas y aceptadas → no se marcan CRITICAL; WARNING/Nota.
+- El orchestrator indicó explícitamente que estas desviaciones están documentadas y aceptadas → WARNING/Nota (no CRITICAL).
 
 ### SUGGESTION
 
-**S1 — Mover el db smoke a `backend/__tests__/db/` o cargar `.env` en setupFiles**
-
-- Resolvería C2: o bien reubica `auth.otp.flow.test.ts` bajo `backend/__tests__/db/` (para que `npm test` default lo excluya y `npm run test:db` lo ejecute — requiere también ampliar el `include` de `vitest.db.config.ts`), o bien añade un `setupFiles` en `vitest.config.ts` que cargue `backend/.env` para todos los runs. ADR-003 ya describe la trampa; solo falta materializar la mitigación.
-
-**S2 — Actualizar los db tests de cambio-002 para sembrar `User` padre**
-
-- Resolvería C1: `cascade/relations/enum-constraint` deben crear un `User` antes de crear `ClientProfile`/`OperatorProfile`/`Message`, y `helpers.ts:resetDb()` debe incluir `User` (y respetar el orden de FKs) en el `TRUNCATE`. Aunque los tests son cambio-002, la regresión fue introducida por el cambio de FK de cambio-003 → el cambio debe ownership.
+**None adicionales.** S1 y S2 (de la primera pasada) fueron implementados y resolvieron C1/C2.
 
 ## 8. Veredicto final
 
-**FAIL**
+**PASS WITH WARNINGS**
 
-Dos gate commands fallan en su forma documentada:
+Todos los gate commands canónicos pasan en su forma documentada:
 
-1. `npm test` (default) → exit non-zero (3 failed) sin `DATABASE_URL` en el entorno (C2). La inclusión de un test db-dependiente en el suite unit canónico rompe el contrato "unit tests no requieren DB" y el singleton de Prisma captura la env var antes de que el test la fije.
-2. `npm run test:db` → exit non-zero (6 failed) por la regresión de FK introducida por `add_auth_identity` sobre los tests db de cambio-002 (C1).
+1. `npm test` (default unit, sin `DATABASE_URL`) → exit 0, 36/36 PASS (C2 resuelto).
+2. `npm run test:db` (con `DATABASE_URL` + Postgres up) → exit 0, 10/10 PASS (C1 resuelto).
+3. `npm run build -w @destrabe/shared` + `tsc --noEmit -p backend` → exit 0.
+4. `npm run lint` → exit 0.
+5. `npm run format:check` → exit 0 (W1 resuelto).
+6. Coverage global 98% lines / 91.66% branch / 80% funcs / 98% stmts (≥ 80% threshold).
 
-**Lado positivo:** cuando el entorno está correctamente preparado (`DATABASE_URL` exportado + Postgres up) **los 10 REQs están COMPLIANT** con evidence runtime (40/40 unit tests verdes, incluido el flujo OTP end-to-end REQ-006/007/010), el schema es válido, la migración está aplicada, el type-check/lint del backend pasa limpio, y la cobertura global supera el umbral 80% (97.98% lines). Solo el formato Prettier (W1) y las desviaciones de spec ya aceptadas (W2) quedan como warnings menores.
+**Los 10 REQs están COMPLIANT** con evidence runtime de los gate canónicos (incluido el flujo
+OTP end-to-end REQ-006/007/010, los middleware REQ-008/009, y la validación de schema/migración
+REQ-001/002). El schema es válido, la migración `add_auth_identity` está aplicada, el
+type-check/lint/format del backend pasa limpio.
 
-C1 y C2 deben resolverse antes de archive (cambio-003 no está listo para `archive`). Las sugerencias S1 y S2 indican el camino; no se fixearon en verify (solo reportan).
+Las únicas warnings restantes son las **desviaciones de spec aceptadas y documentadas en ADR-003**
+(W2: `phoneNumber` column, rutas `/phone-number/*`, `verifyOTP` omitido, `signUpOnVerification`
+añadido, montaje vía `router.use`) — ninguna rompe un REQ y todas están registradas en el ADR y
+en comentarios del schema/test.
+
+**Cambio-003-auth está listo para `archive`** (merge `feature/cambio-003-auth` → `develop`).
