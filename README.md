@@ -2,14 +2,14 @@
 
 App móvil de intermediación de servicios de grúa. Modelo de oferta libre (tipo InDriver): el cliente publica una solicitud, los operadores cercanos cotizan, y el cliente acepta la mejor oferta. La plataforma retiene una comisión configurable y transfiere el resto al operador mediante split de pago.
 
-> **Estado:** Fase Demo — estructura base. Sin pagos reales ni tracking en vivo aún.
+> **Estado:** Fase Demo — foundation + data model listos. Sin pagos reales ni tracking en vivo aún.
 
 ## Fases
 
-| Fase     | Alcance                                                                                 | Estado        |
-| -------- | --------------------------------------------------------------------------------------- | ------------- |
-| **Demo** | Flujo completo solicitud → oferta → aceptación. Sin pagos reales, sin tracking en vivo. | En estructura |
-| **MVP**  | Pagos reales, tracking GPS, historial, calificaciones, panel admin.                     | Por estimar   |
+| Fase     | Alcance                                                                                 | Estado      |
+| -------- | --------------------------------------------------------------------------------------- | ----------- |
+| **Demo** | Flujo completo solicitud → oferta → aceptación. Sin pagos reales, sin tracking en vivo. | En curso    |
+| **MVP**  | Pagos reales, tracking GPS, historial, calificaciones, panel admin.                     | Por estimar |
 
 ## Stack
 
@@ -61,14 +61,17 @@ El proyecto se desarrolla con **SDD (Spec-Driven Development)** y **TDD estricto
 
 ## Empezar
 
-> Foundation (cambio-001) implementado. `backend/` y `@destrabe/shared` están listos; `app/` (mobile) y `frontend/` (admin) se inicializan en cambios posteriores.
+> Foundation (cambio-001) + Data model (cambio-002) implementados. `backend/` y `@destrabe/shared` están listos; `app/` (mobile) y `frontend/` (admin) se inicializan en cambios posteriores.
 
 ```bash
 npm install                          # instala workspaces (backend, shared) y deps
 npm run build -w @destrabe/shared    # compila shared -> dist/ (antes de dev backend)
+npm run db:up                        # levanta Postgres+PostGIS (docker-compose.dev.yml) en :5432
+npm run db:migrate                   # aplica migraciones (crea tablas/enums)
 npm run dev -w @destrabe/backend     # backend en :3000 (sin DB/Redis para /health)
-npm test                             # suite completa (vitest)
-npm test -- --coverage               # con cobertura (umbral 80%)
+npm test                             # unit tests (vitest, sin DB)
+npm run test:db                      # db smoke tests (requiere db:up + migración)
+npm test -- --coverage               # unit + cobertura (umbral 80%)
 npm run lint                         # eslint flat
 npm run format                       # prettier --write
 ```

@@ -8,6 +8,16 @@ Red → Green → Refactor. Cada pieza de código nace de un test que la justifi
 2. Escribir la implementación mínima para que pase (GREEN).
 3. Refactorizar manteniendo el test verde.
 
+## Suites separadas (backend)
+
+| Suite | Comando            | Requiere DB  | Config                | Alcance                                                              |
+| ----- | ------------------ | ------------ | --------------------- | -------------------------------------------------------------------- |
+| unit  | `npm test`         | No           | `vitest.config.ts`    | schemas Zod, env, middleware, routes (sin tocar Postgres)            |
+| db    | `npm run test:db`  | Sí (`db:up`) | `vitest.db.config.ts` | relaciones Prisma, cascade, enum constraints (fileParallelism=false) |
+| all   | `npm run test:all` | Sí           | ambos                 | unit + db                                                            |
+
+Helper de tests DB: `backend/__tests__/db/helpers.ts` — `prisma` + `resetDb()` (TRUNCATE todas las tablas CASCADE, en una sola sentencia para evitar deadlocks).
+
 ## Runners por dominio
 
 | Dominio                    | Runner           | Alcance                                      |

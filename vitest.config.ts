@@ -6,6 +6,7 @@ export default defineConfig({
       'backend/__tests__/**/*.test.ts',
       'shared/__tests__/**/*.test.ts',
     ],
+    exclude: ['**/__tests__/db/**', '**/node_modules/**', '**/dist/**'],
     coverage: {
       provider: 'v8',
       include: ['backend/src/**/*.ts', 'shared/src/**/*.ts'],
