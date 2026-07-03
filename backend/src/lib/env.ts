@@ -27,3 +27,7 @@ export function parseEnv(
 ): Env {
   return envSchema.parse(input);
 }
+
+// Singleton parsed from `process.env` para que auth.ts/plivo.ts importen `env`
+// directamente (parseEnv sigue exportado para tests que inyectan input).
+export const env = parseEnv();

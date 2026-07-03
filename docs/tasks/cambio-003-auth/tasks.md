@@ -174,7 +174,7 @@ Etapa `apply`: ejecutar T1→T12 con TDD.
 ## Progreso apply
 
 - [x] T1 — Instalar deps + ampliar env globals (better-auth ^1.6.23, plivo ^4.78.0)
-- [ ] T2 — Plivo client (TDD)
+- [x] T2 — Plivo client (TDD)
 - [ ] T3 — Schema Better Auth: User/Session/Account/Verification (requiere PG up)
 - [ ] T4 — Migración add_auth_identity (requiere PG up)
 - [ ] T5 — auth.ts config (TDD)
