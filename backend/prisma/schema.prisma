@@ -6,3 +6,149 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum UserRole {
+  CLIENT
+  OPERATOR
+  ADMIN
+}
+
+enum ServiceType {
+  BREAKDOWN
+  TRANSFER
+}
+
+enum ServiceStatus {
+  PENDING
+  QUOTED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+model ClientProfile {
+  id       String    @id @default(cuid())
+  userId   String    @unique // FK a User (cambio-003)
+  services Service[]
+
+  @@index([userId])
+}
+
+model OperatorProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique // FK a User (cambio-003)
+  truckType     String
+  licensePlate  String
+  photoUrl      String?
+  available     Boolean   @default(false)
+  rating        Float     @default(0)
+  ratingCount   Int       @default(0)
+  lastLatitude  Float?
+  lastLongitude Float?
+  lastSeenAt    DateTime?
+  mpAccountId   String?
+
+  quotes  Quote[]
+  reviews Review[]
+
+  @@index([userId])
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  clientProfileId String
+  client          ClientProfile @relation(fields: [clientProfileId], references: [id], onDelete: Cascade)
+
+  type        ServiceType
+  status      ServiceStatus @default(PENDING)
+  description String?
+  photoUrl    String?
+
+  originLat     Float
+  originLng     Float
+  originAddress String?
+  destLat       Float?
+  destLng       Float?
+  destAddress   String?
+
+  acceptedQuoteId String? @unique
+  acceptedQuote   Quote?  @relation("AcceptedQuote", fields: [acceptedQuoteId], references: [id])
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quotes   Quote[]   @relation("ServiceQuotes")
+  messages Message[]
+  payment  Payment?
+  review   Review?
+
+  @@index([clientProfileId])
+  @@index([status])
+}
+
+model Quote {
+  id                String          @id @default(cuid())
+  serviceId         String
+  service           Service         @relation("ServiceQuotes", fields: [serviceId], references: [id], onDelete: Cascade)
+  operatorProfileId String
+  operator          OperatorProfile @relation(fields: [operatorProfileId], references: [id], onDelete: Cascade)
+
+  amount           Float
+  estimatedMinutes Int?
+  note             String?
+  createdAt        DateTime @default(now())
+
+  acceptedForService Service? @relation("AcceptedQuote")
+
+  @@index([serviceId])
+  @@index([operatorProfileId])
+}
+
+model Payment {
+  id        String  @id @default(cuid())
+  serviceId String  @unique
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  mpPaymentId    String?       @unique
+  amount         Float
+  commission     Float
+  operatorAmount Float
+  status         PaymentStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  senderId  String // FK a User (cambio-003)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([serviceId])
+}
+
+model Review {
+  id                String          @id @default(cuid())
+  serviceId         String          @unique
+  service           Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  operatorProfileId String
+  operator          OperatorProfile @relation(fields: [operatorProfileId], references: [id], onDelete: Cascade)
+
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@index([operatorProfileId])
+}
+
+// User y Session se definen en el cambio-003 (Better Auth).
