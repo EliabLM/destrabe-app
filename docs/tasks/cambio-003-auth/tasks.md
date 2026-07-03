@@ -182,6 +182,6 @@ Etapa `apply`: ejecutar T1→T12 con TDD.
 - [x] T7 — Middleware requireAuth + requireRole (TDD)
 - [ ] T8 — shared: tipos auth + schemas Zod
 - [ ] T9 — Flujo OTP end-to-end (requiere PG up)
-- [ ] T10 — Ampliar tests de env (TDD)
+- [x] T10 — Ampliar tests de env (TDD)
 - [ ] T11 — ADR-003 documentación
 - [ ] T12 — Docs finales (README + testing strategy)

@@ -9,11 +9,107 @@ describe('parseEnv', () => {
   });
 
   it('defaults NODE_ENV to development when absent', () => {
-    const env = parseEnv({ PORT: '3000' });
+    const env = parseEnv({
+      PORT: '3000',
+      BETTER_AUTH_SECRET: 'x'.repeat(32),
+      BETTER_AUTH_URL: 'http://localhost:3000',
+    });
     expect(env.NODE_ENV).toBe('development');
   });
 
   it('throws mentioning PORT when PORT is not numeric', () => {
     expect(() => parseEnv({ PORT: 'abc' })).toThrow(/PORT/);
+  });
+});
+
+/**
+ * T10 — Ampliación tests de env (REQ-004)
+ *
+ * Valida las vars de auth introducidas en T1:
+ *  - envs auth válidos → `env.BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` seteados,
+ *    y `PLIVO_*` quedan como `string | undefined` (opcionales en modo dev).
+ *  - `BETTER_AUTH_SECRET` ausente → lanza error que menciona `BETTER_AUTH_SECRET`.
+ *  - `BETTER_AUTH_SECRET` presente pero < 32 chars → error que lo menciona.
+ *  - `BETTER_AUTH_URL` ausente o inválida → error que menciona `BETTER_AUTH_URL`.
+ *
+ * Nota: para forzar la rama *requerido* (no test-defaults) usamos
+ * `NODE_ENV: 'development'` en el input; con `NODE_ENV: 'test'` los defaults
+ * del fixture se aplicarían y no validaríamos el caso de ausencia real.
+ */
+describe('parseEnv — auth vars (REQ-004)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+
+  it('sets BETTER_AUTH_SECRET and BETTER_AUTH_URL when provided (valid)', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.BETTER_AUTH_SECRET).toBe(VALID_SECRET);
+    expect(env.BETTER_AUTH_URL).toBe(VALID_URL);
+  });
+
+  it('keeps PLIVO_* as string | undefined when not provided', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.PLIVO_AUTH_ID).toBeUndefined();
+    expect(env.PLIVO_AUTH_TOKEN).toBeUndefined();
+    expect(env.PLIVO_PHONE_NUMBER).toBeUndefined();
+  });
+
+  it('keeps PLIVO_* values when provided', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PLIVO_AUTH_ID: 'auth-id',
+      PLIVO_AUTH_TOKEN: 'auth-token',
+      PLIVO_PHONE_NUMBER: '+571234567890',
+    });
+    expect(env.PLIVO_AUTH_ID).toBe('auth-id');
+    expect(env.PLIVO_AUTH_TOKEN).toBe('auth-token');
+    expect(env.PLIVO_PHONE_NUMBER).toBe('+571234567890');
+  });
+
+  it('throws mentioning BETTER_AUTH_SECRET when it is absent (non-test env)', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/BETTER_AUTH_SECRET/);
+  });
+
+  it('throws mentioning BETTER_AUTH_SECRET when it is shorter than 32 chars', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_SECRET: 'too-short',
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/BETTER_AUTH_SECRET/);
+  });
+
+  it('throws mentioning BETTER_AUTH_URL when it is absent (non-test env)', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+      }),
+    ).toThrow(/BETTER_AUTH_URL/);
+  });
+
+  it('throws mentioning BETTER_AUTH_URL when it is not a valid URL', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: 'not-a-url',
+      }),
+    ).toThrow(/BETTER_AUTH_URL/);
   });
 });
