@@ -61,11 +61,19 @@ El proyecto se desarrolla con **SDD (Spec-Driven Development)** y **TDD estricto
 
 ## Empezar
 
-> Estructura base. El setup de cada capa (`app/`, `backend/`, `shared/`) se inicializa en su etapa SDD correspondiente.
+> Foundation (cambio-001) implementado. `backend/` y `@destrabe/shared` están listos; `app/` (mobile) y `frontend/` (admin) se inicializan en cambios posteriores.
 
 ```bash
-# (pendiente) instalación y arranque por capa — se documenta en cada etapa
+npm install                          # instala workspaces (backend, shared) y deps
+npm run build -w @destrabe/shared    # compila shared -> dist/ (antes de dev backend)
+npm run dev -w @destrabe/backend     # backend en :3000 (sin DB/Redis para /health)
+npm test                             # suite completa (vitest)
+npm test -- --coverage               # con cobertura (umbral 80%)
+npm run lint                         # eslint flat
+npm run format                       # prettier --write
 ```
+
+Health check: `GET http://localhost:3000/health` → `{ "status": "ok" }`.
 
 ## Licencia
 
