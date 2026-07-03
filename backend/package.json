@@ -10,7 +10,9 @@
   "dependencies": {
     "@destrabe/shared": "*",
     "@prisma/client": "^5.22.0",
+    "better-auth": "^1.6.23",
     "express": "^4.21.0",
+    "plivo": "^4.78.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

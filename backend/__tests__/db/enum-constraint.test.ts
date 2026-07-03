@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { Prisma } from '@prisma/client';
-import { prisma, resetDb } from './helpers';
+import { prisma, resetDb, seedUser } from './helpers';
 
 afterAll(async () => {
   await prisma.$disconnect();
@@ -12,6 +12,7 @@ describe('enum constraints (REQ-007)', () => {
   });
 
   it('rejects an invalid ServiceStatus value', async () => {
+    await seedUser('u-c');
     const client = await prisma.clientProfile.create({
       data: { userId: 'u-c' },
     });
@@ -35,6 +36,7 @@ describe('enum constraints (REQ-007)', () => {
   });
 
   it('rejects an invalid ServiceType value via raw SQL (DB-side constraint)', async () => {
+    await seedUser('u-c');
     const client = await prisma.clientProfile.create({
       data: { userId: 'u-c' },
     });
