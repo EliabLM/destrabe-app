@@ -179,7 +179,7 @@ Etapa `apply`: ejecutar T1→T12 con TDD.
 - [ ] T4 — Migración add_auth_identity (requiere PG up)
 - [x] T5 — auth.ts config (TDD)
 - [ ] T6 — Montar handlers en app.ts/router (requiere PG up)
-- [ ] T7 — Middleware requireAuth + requireRole (TDD)
+- [x] T7 — Middleware requireAuth + requireRole (TDD)
 - [ ] T8 — shared: tipos auth + schemas Zod
 - [ ] T9 — Flujo OTP end-to-end (requiere PG up)
 - [ ] T10 — Ampliar tests de env (TDD)
