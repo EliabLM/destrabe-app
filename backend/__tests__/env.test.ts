@@ -11,6 +11,7 @@ describe('parseEnv', () => {
   it('defaults NODE_ENV to development when absent', () => {
     const env = parseEnv({
       PORT: '3000',
+      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: 'x'.repeat(32),
       BETTER_AUTH_URL: 'http://localhost:3000',
     });
@@ -43,6 +44,7 @@ describe('parseEnv — auth vars (REQ-004)', () => {
   it('sets BETTER_AUTH_SECRET and BETTER_AUTH_URL when provided (valid)', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
+      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
     });
@@ -53,6 +55,7 @@ describe('parseEnv — auth vars (REQ-004)', () => {
   it('keeps PLIVO_* as string | undefined when not provided', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
+      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
     });
@@ -64,6 +67,7 @@ describe('parseEnv — auth vars (REQ-004)', () => {
   it('keeps PLIVO_* values when provided', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
+      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PLIVO_AUTH_ID: 'auth-id',
