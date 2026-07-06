@@ -4,8 +4,9 @@ import { ZodError } from 'zod';
 
 /**
  * Extends Express Request with a `validated` property for parsed data.
+ * Exported so route handlers can cast `req` and access `req.validated`.
  */
-interface ValidatedRequest extends Request {
+export interface ValidatedRequest extends Request {
   validated?: Record<string, unknown>;
 }
 

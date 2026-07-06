@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { healthRouter } from './health.routes';
 import { authHandler } from '../lib/auth';
+import { servicesRouter } from './services.routes';
 
 export const router = Router();
 
@@ -10,3 +11,6 @@ router.use(healthRouter);
 // partir de `req.baseUrl`+`req.url`, así que el prefijo de Express no rompe
 // el basePath `/api/auth` que espera Better Auth internamente.
 router.use('/api/auth', authHandler);
+
+// Services: monta servicios bajo /services (cambio-004 / T7).
+router.use('/services', servicesRouter);
