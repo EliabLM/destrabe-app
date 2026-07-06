@@ -8,19 +8,23 @@
 
 ## Review Workload Forecast
 
-| Field | Value |
-|-------|-------|
-| Estimated changed lines | 600-900 (7 new + 8 modified + 5 test + migración) |
-| 400-line budget risk | High |
-| Chained PRs recommended | Yes |
-| Suggested split | PR 1 (T1-T6 libs puros) → PR 2 (T7-T9 routes+migración+db smoke) → PR 3 (T10-T11 env tests+docs) |
-| Delivery strategy | ask-on-risk |
-| Chain strategy | pending |
+| Field                   | Value                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
+| Estimated changed lines | 600-900 (7 new + 8 modified + 5 test + migración)                                                |
+| 400-line budget risk    | High                                                                                             |
+| Chained PRs recommended | Yes                                                                                              |
+| Suggested split         | PR 1 (T1-T6 libs puros) → PR 2 (T7-T9 routes+migración+db smoke) → PR 3 (T10-T11 env tests+docs) |
+| Delivery strategy       | ask-on-risk                                                                                      |
+| Chain strategy          | pending                                                                                          |
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: feature-branch-unique
 400-line budget risk: High
+
+> **Decisión del usuario:** Feature branch única (`feature/cambio-004-servicios`)
+> con commits por grupo lógico (T1-T6, T7-T9, T10-T11), merge --no-ff a develop
+> al archive. Mismo flujo que cambio-001/002/003.
 
 ---
 
@@ -138,14 +142,14 @@ Etapa `apply`: ejecutar T1→T11 con TDD. **Orchestrator:** pedir decisión de c
 
 ## Progreso apply
 
-- [ ] T1 — Shared schemas + tipos (Zod)
-- [ ] T2 — Env + deps + infra compose
-- [ ] T3 — serviceMachine pura (TDD)
-- [ ] T4 — validate middleware (TDD)
-- [ ] T5 — notifications stub (TDD)
-- [ ] T6 — queue.ts + serviceExpiry.job (TDD)
-- [ ] T7 — services.routes (POST+GET+PATCH)
-- [ ] T8 — Migración _init_postgis + nearby raw SQL
-- [ ] T9 — Db smoke lifecycle (TDD)
-- [ ] T10 — Ampliar tests env (TDD)
-- [ ] T11 — README + testing strategy docs
+- [x] T1 — Shared schemas + tipos (Zod)
+- [x] T2 — Env + deps + infra compose
+- [x] T3 — serviceMachine pura (TDD)
+- [x] T4 — validate middleware (TDD)
+- [x] T5 — notifications stub (TDD)
+- [x] T6 — queue.ts + serviceExpiry.job (TDD)
+- [x] T7 — services.routes (POST+GET+PATCH)
+- [x] T8 — Migración _init_postgis + nearby raw SQL
+- [x] T9 — Db smoke lifecycle (TDD)
+- [x] T10 — Ampliar tests env (TDD)
+- [x] T11 — README + testing strategy docs

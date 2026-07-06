@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "test:db": "vitest run --config vitest.db.config.ts --passWithNoTests",
     "test:all": "npm test && npm run test:db",
-    "db:up": "docker compose -f infra/docker-compose.dev.yml up -d postgres",
+    "db:up": "docker compose -f infra/docker-compose.dev.yml up -d postgres redis",
     "db:down": "docker compose -f infra/docker-compose.dev.yml down",
     "db:migrate": "prisma migrate dev --schema=backend/prisma/schema.prisma",
     "lint": "eslint .",
