@@ -40,6 +40,22 @@ export const updateServiceStatusSchema = z.object({
   status: serviceStatusSchema,
 });
 
+/**
+ * Schema for `POST /services/:id/quotes` body (cambio-005 / REQ-004).
+ * `amount` requerido (positivo); `estimatedMinutes` y `note` opcionales.
+ */
+export const createQuoteSchema = z.object({
+  amount: z.number().positive('amount must be positive'),
+  estimatedMinutes: z.number().int().positive().optional(),
+  note: z.string().max(500).optional(),
+});
+
+/**
+ * Schema for `POST /quotes/:id/accept` body (cambio-005 / REQ-004).
+ * Body vacío — el accept no recibe payload, solo valida que el body sea `{}`.
+ */
+export const acceptQuoteSchema = z.object({});
+
 // ─── Inferred types ──────────────────────────────────────────────────────────
 
 export type CreateServiceInput = z.infer<typeof createServiceSchema>;
@@ -47,3 +63,5 @@ export type NearbyServicesQuery = z.infer<typeof nearbyServicesQuerySchema>;
 export type UpdateServiceStatusInput = z.infer<
   typeof updateServiceStatusSchema
 >;
+export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
+export type AcceptQuoteInput = z.infer<typeof acceptQuoteSchema>;

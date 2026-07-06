@@ -16,4 +16,6 @@ export type {
   CreateServiceInput,
   NearbyServicesQuery,
   UpdateServiceStatusInput,
+  CreateQuoteInput,
+  AcceptQuoteInput,
 } from '../schemas/service.schema';
