@@ -17,7 +17,7 @@ export type Actor = 'CLIENT' | 'OPERATOR' | 'ADMIN' | 'system';
  */
 export class ConflictError extends Error {
   status = 409;
-  code: 'INVALID_TRANSITION' = 'INVALID_TRANSITION';
+  code = 'INVALID_TRANSITION' as const;
 
   constructor(message: string) {
     super(message);

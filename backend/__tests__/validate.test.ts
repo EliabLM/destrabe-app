@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
 import { validate } from '../src/middleware/validate';
+import type { ValidatedRequest } from '../src/middleware/validate';
 import type { Request, Response, NextFunction } from 'express';
 
 /**
@@ -47,7 +48,7 @@ describe('validate middleware — body (REQ-009)', () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
-    expect((req as any).validated?.body).toEqual({ name: 'Alice', age: 30 });
+    expect((req as ValidatedRequest).validated?.body).toEqual({ name: 'Alice', age: 30 });
   });
 
   it('responds 400 with VALIDATION_ERROR for invalid body, does not call next', () => {
@@ -98,7 +99,7 @@ describe('validate middleware — query (REQ-009)', () => {
     middleware(req, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
-    expect((req as any).validated?.query).toEqual({ page: 1, limit: 20 });
+    expect((req as ValidatedRequest).validated?.query).toEqual({ page: 1, limit: 20 });
   });
 
   it('applies default values for optional fields', () => {
@@ -110,7 +111,7 @@ describe('validate middleware — query (REQ-009)', () => {
     middleware(req, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
-    expect((req as any).validated?.query).toEqual({ page: 2, limit: 10 });
+    expect((req as ValidatedRequest).validated?.query).toEqual({ page: 2, limit: 10 });
   });
 
   it('responds 400 for invalid query params', () => {
