@@ -89,9 +89,7 @@ async function authenticateAs(
   role: UserRole = UserRole.CLIENT,
 ) {
   const agent = request.agent(createApp());
-  await agent
-    .post('/api/auth/phone-number/send-otp')
-    .send({ phoneNumber });
+  await agent.post('/api/auth/phone-number/send-otp').send({ phoneNumber });
   const code = capturedSendOtps.at(-1)!.code;
   const verifyRes = await agent
     .post('/api/auth/phone-number/verify')
@@ -281,7 +279,9 @@ describe('POST /quotes/:id/accept (REQ-003/006)', () => {
       .post(`/services/${serviceId}/quotes`)
       .send({ amount: 5000 });
 
-    const res = await client.post(`/quotes/${quoteRes.body.id}/accept`).send({});
+    const res = await client
+      .post(`/quotes/${quoteRes.body.id}/accept`)
+      .send({});
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe(ServiceStatus.ACTIVE);

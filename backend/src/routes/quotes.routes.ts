@@ -73,7 +73,10 @@ serviceQuotesRouter.post(
       ) {
         return res
           .status(409)
-          .json({ error: 'Service not accepting quotes', code: 'INVALID_TRANSITION' });
+          .json({
+            error: 'Service not accepting quotes',
+            code: 'INVALID_TRANSITION',
+          });
       }
 
       // REQ-001: OperatorProfile preexistente requerido
@@ -101,7 +104,11 @@ serviceQuotesRouter.post(
           },
         });
         if (wasPending) {
-          assertTransition(ServiceStatus.PENDING, ServiceStatus.QUOTED, 'system');
+          assertTransition(
+            ServiceStatus.PENDING,
+            ServiceStatus.QUOTED,
+            'system',
+          );
           await tx.service.update({
             where: { id: serviceId },
             data: { status: ServiceStatus.QUOTED },

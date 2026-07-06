@@ -15,30 +15,30 @@ Tres handlers en un nuevo `quotes.routes.ts` siguiendo el patrón exacto de `ser
 
 ### D1 — Montaje dual de routers
 
-| Opción | Tradeoff | Decisión |
-|--------|----------|----------|
-| Un `quotesRouter` en `/services` + `/quotes` | Duplica paths en ambos mounts | ✗ |
+| Opción                                                                                                | Tradeoff                             | Decisión   |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------ | ---------- |
+| Un `quotesRouter` en `/services` + `/quotes`                                                          | Duplica paths en ambos mounts        | ✗          |
 | Dos routers en `quotes.routes.ts` (`serviceQuotesRouter`→`/services`, `quotesAcceptRouter`→`/quotes`) | Dos exports; paths RESTful canónicos | ✅ Elegida |
-| Todo en `services.routes.ts` | Acopla concerns; rompe separación | ✗ |
+| Todo en `services.routes.ts`                                                                          | Acopla concerns; rompe separación    | ✗          |
 
 **Rationale:** `POST/GET /services/:id/quotes` son sub-recursos de Service; `POST /quotes/:id/accept` opera sobre Quote raíz. Dos mounts sin ambigüedad.
 
 ### D2 — `prisma.$transaction` en create y accept
 
-| Opción | Tradeoff | Decisión |
-|--------|----------|----------|
-| `$transaction` quote.create + service.update condicional | Overhead mínimo; atomicidad | ✅ Elegida |
-| Secuencial sin tx | Orfana quote si update falla | ✗ |
+| Opción                                                   | Tradeoff                     | Decisión   |
+| -------------------------------------------------------- | ---------------------------- | ---------- |
+| `$transaction` quote.create + service.update condicional | Overhead mínimo; atomicidad  | ✅ Elegida |
+| Secuencial sin tx                                        | Orfana quote si update falla | ✗          |
 
 **Rationale:** En la primera quote (`PENDING→QUOTED`), quote+status son atómicos. En `accept`, `service.update` + `payment.create` son inseparables; `@unique` refuerzan DB-level.
 
 ### D3 — Error `ALREADY_ACCEPTED`
 
-| Opción | Tradeoff | Decisión |
-|--------|----------|----------|
-| `AlreadyAcceptedError` local (409, `ALREADY_ACCEPTED`) compatible con `errorHandler` | Nueva clase minúscula en `quotes.routes.ts` | ✅ Elegida |
-| Extender `ConflictError` con param `code` | Modifica `serviceMachine.ts` (lista no-change) | ✗ |
-| Inline `res.status(409).json(...)` | Rompe patrón throw→`errorHandler` | ✗ |
+| Opción                                                                               | Tradeoff                                       | Decisión   |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------- | ---------- |
+| `AlreadyAcceptedError` local (409, `ALREADY_ACCEPTED`) compatible con `errorHandler` | Nueva clase minúscula en `quotes.routes.ts`    | ✅ Elegida |
+| Extender `ConflictError` con param `code`                                            | Modifica `serviceMachine.ts` (lista no-change) | ✗          |
+| Inline `res.status(409).json(...)`                                                   | Rompe patrón throw→`errorHandler`              | ✗          |
 
 **Rationale:** `errorHandler` lee `err.status`/`err.code`; nueva clase encaja sin tocar infraestructura. Se lanza al verificar `status === ACTIVE` y al capturar P2002 en `accept`.
 
@@ -66,20 +66,23 @@ Cliente ─POST /quotes/:id/accept──▶ find quote(404) ─▶ find service 
 
 ## 4. File Changes
 
-| File | Action | Descripción |
-|------|--------|-------------|
-| `backend/src/routes/quotes.routes.ts` | Create | 3 handlers, 2 routers, error class |
-| `backend/src/routes/index.ts` | Modify | `router.use('/services', serviceQuotesRouter)` + `router.use('/quotes', quotesAcceptRouter)` |
-| `shared/src/schemas/service.schema.ts` | Modify | `createQuoteSchema`, `acceptQuoteSchema` |
-| `shared/src/types/service.ts` | Modify | re-export `CreateQuoteInput` |
-| `shared/src/schemas/index.ts` | Verify | barrel ya hace `export *` |
-| `backend/__tests__/quotes.routes.test.ts` | Create | unit Zod (REQ-004) |
-| `backend/__tests__/db/quotes.lifecycle.test.ts` | Create | supertest PENDING→QUOTED→ACTIVE (REQ-001/002/003/005/006/007) |
+| File                                            | Action | Descripción                                                                                  |
+| ----------------------------------------------- | ------ | -------------------------------------------------------------------------------------------- |
+| `backend/src/routes/quotes.routes.ts`           | Create | 3 handlers, 2 routers, error class                                                           |
+| `backend/src/routes/index.ts`                   | Modify | `router.use('/services', serviceQuotesRouter)` + `router.use('/quotes', quotesAcceptRouter)` |
+| `shared/src/schemas/service.schema.ts`          | Modify | `createQuoteSchema`, `acceptQuoteSchema`                                                     |
+| `shared/src/types/service.ts`                   | Modify | re-export `CreateQuoteInput`                                                                 |
+| `shared/src/schemas/index.ts`                   | Verify | barrel ya hace `export *`                                                                    |
+| `backend/__tests__/quotes.routes.test.ts`       | Create | unit Zod (REQ-004)                                                                           |
+| `backend/__tests__/db/quotes.lifecycle.test.ts` | Create | supertest PENDING→QUOTED→ACTIVE (REQ-001/002/003/005/006/007)                                |
 
 ## 5. Interfaces / Contracts
 
 ```ts
-class AlreadyAcceptedError extends Error { status = 409; code = 'ALREADY_ACCEPTED' as const; }
+class AlreadyAcceptedError extends Error {
+  status = 409;
+  code = 'ALREADY_ACCEPTED' as const;
+}
 
 // createQuoteSchema: { amount: z.number().positive(), estimatedMinutes?: z.number().int().positive(), note?: z.string().max(500) }
 // acceptQuoteSchema: z.object({}).strict()
@@ -90,13 +93,13 @@ class AlreadyAcceptedError extends Error { status = 409; code = 'ALREADY_ACCEPTE
 
 ## 6. Testing Strategy
 
-| Layer | Qué | Cómo |
-|-------|-----|------|
-| Unit | `createQuoteSchema`/`acceptQuoteSchema` válido/inválido → `VALIDATION_ERROR` | Zod `safeParse` directo |
-| DB smoke | `POST /services/:id/quotes` (PENDING→QUOTED+notify; QUOTED→201; 422 sin perfil; 409 ACTIVE) | supertest + `authenticateAs(OP)` + `seedService` extendido |
-| DB smoke | `GET /services/:id/quotes` (dueño/admin todas; operador solo las suyas; ajeno 404) | supertest + 2 operadores con perfil |
-| DB smoke | `POST /quotes/:id/accept` (ACTIVE+`acceptedQuoteId`+Payment stub; doble-accept 409; no-dueño 403) | supertest + `prisma.payment.findUnique` |
-| DB smoke | 401 sin token, 403 rol incorrecto, 404 inexistente | helpers de cambio-004 |
+| Layer    | Qué                                                                                               | Cómo                                                       |
+| -------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Unit     | `createQuoteSchema`/`acceptQuoteSchema` válido/inválido → `VALIDATION_ERROR`                      | Zod `safeParse` directo                                    |
+| DB smoke | `POST /services/:id/quotes` (PENDING→QUOTED+notify; QUOTED→201; 422 sin perfil; 409 ACTIVE)       | supertest + `authenticateAs(OP)` + `seedService` extendido |
+| DB smoke | `GET /services/:id/quotes` (dueño/admin todas; operador solo las suyas; ajeno 404)                | supertest + 2 operadores con perfil                        |
+| DB smoke | `POST /quotes/:id/accept` (ACTIVE+`acceptedQuoteId`+Payment stub; doble-accept 409; no-dueño 403) | supertest + `prisma.payment.findUnique`                    |
+| DB smoke | 401 sin token, 403 rol incorrecto, 404 inexistente                                                | helpers de cambio-004                                      |
 
 **Notas:** Mock `queue` idéntico a cambio-004. Reutilizar `authenticateAs`; nuevo helper `seedOperatorProfile`. `truncateAll` ya incluye `Quote`/`Payment`.
 

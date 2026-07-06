@@ -2,7 +2,7 @@
 
 App móvil de intermediación de servicios de grúa. Modelo de oferta libre (tipo InDriver): el cliente publica una solicitud, los operadores cercanos cotizan, y el cliente acepta la mejor oferta. La plataforma retiene una comisión configurable y transfiere el resto al operador mediante split de pago.
 
-> **Estado:** Fase Demo — foundation + data model + auth (OTP teléfono) + servicios (ciclo de vida) listos. Sin pagos reales ni tracking en vivo aún.
+> **Estado:** Fase Demo — foundation + data model + auth (OTP teléfono) + servicios (ciclo de vida) + cotizaciones (quotes/offers) listos. Sin pagos reales ni tracking en vivo aún.
 
 ## Fases
 
@@ -120,6 +120,28 @@ PENDING ──system──▶ QUOTED ──CLIENT──▶ ACTIVE ──OPERATOR
 - Cualquier transición fuera de la tabla → `ConflictError` 409.
 
 > El timer BullMQ (`serviceExpiry` queue) encola un job con `delay = SERVICE_TIMEOUT_MINUTES * 60s` al crear el servicio; al expirar, el worker transiciona `PENDING → CANCELLED` vía `system` y notifica (log stub en demo). Detalles en `docs/designs/cambio-004-servicios/design.md`.
+
+## Cotizaciones (quotes/offers)
+
+Flujo de cotizaciones que cierra el ciclo Demo core: el operador cotiza sobre un servicio `PENDING`/`QUOTED`, el cliente acepta la mejor oferta → `ACTIVE`. Pago como **stub** (`commission=0`) para cambio-006 (Mercado Pago real).
+
+### Endpoints
+
+| Método | Ruta                   | Rol      | Efecto                                                                      |
+| ------ | ---------------------- | -------- | --------------------------------------------------------------------------- |
+| POST   | `/services/:id/quotes` | OPERATOR | Crea `Quote`; si service `PENDING` → `QUOTED` (system); notifica cliente    |
+| GET    | `/services/:id/quotes` | auth     | Dueño/admin: todas + datos operador · Operador: solo las suyas · Ajeno: 404 |
+| POST   | `/quotes/:id/accept`   | CLIENT   | `QUOTED → ACTIVE` (CLIENT); setea `acceptedQuoteId`; crea `Payment` stub    |
+
+### Reglas clave
+
+- **OperatorProfile requerido** para cotizar (422 `OPERATOR_PROFILE_REQUIRED` si no tiene). No hay lazy upsert — `truckType`/`licensePlate` son campos required.
+- **Múltiples operadores** pueden cotizar sobre un servicio `QUOTED` (la primera cotización transiciona `PENDING → QUOTED`; las subsequentes no transicionan).
+- **Doble-accept protegido**: `acceptedQuoteId @unique` a DB-level + check `status === ACTIVE` → 409 `ALREADY_ACCEPTED`. Race condition en `prisma.$transaction` captura `P2002`.
+- **Payment stub**: `amount = quote.amount`, `commission = 0`, `operatorAmount = quote.amount`, `status = PENDING`. Placeholder para cambio-006.
+- **Notificación**: `notifyClient(service, 'quote_received')` en **cada** quote (no solo la primera).
+
+> La FSM (`serviceMachine.ts`) no se modifica — las transiciones `PENDING→QUOTED` (system) y `QUOTED→ACTIVE` (CLIENT) ya estaban definidas en cambio-004; cambio-005 solo las invoca. Detalles en `docs/designs/cambio-005-quotes/design.md`.
 
 ## Licencia
 

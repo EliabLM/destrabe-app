@@ -8,14 +8,14 @@
 
 ## Review Workload Forecast
 
-| Field                   | Value                    |
-| ----------------------- | ------------------------ |
-| Estimated changed lines | 400-600                  |
-| 400-line budget risk    | Medium                   |
-| Chained PRs recommended | No                       |
-| Suggested split         | Feature branch única     |
-| Delivery strategy       | ask-on-risk              |
-| Chain strategy          | feature-branch-unique    |
+| Field                   | Value                 |
+| ----------------------- | --------------------- |
+| Estimated changed lines | 400-600               |
+| 400-line budget risk    | Medium                |
+| Chained PRs recommended | No                    |
+| Suggested split         | Feature branch única  |
+| Delivery strategy       | ask-on-risk           |
+| Chain strategy          | feature-branch-unique |
 
 Decision needed before apply: Yes
 Chained PRs recommended: No
@@ -110,11 +110,11 @@ Etapa `apply`: ejecutar T1→T8 con TDD. **Orchestrator:** pedir confirmación d
 
 ## Progreso apply
 
-- [ ] T1 — Shared schemas + tipos (Zod)
-- [ ] T2 — AlreadyAcceptedError + quotes.routes (POST quote)
-- [ ] T3 — GET /services/:id/quotes
-- [ ] T4 — POST /quotes/:id/accept + Payment stub
-- [ ] T5 — Mount routers + routes/index.ts
-- [ ] T6 — Unit tests Zod schemas (TDD)
-- [ ] T7 — Db smoke quotes lifecycle (TDD)
-- [ ] T8 — README + testing docs
+- [x] T1 — Shared schemas + tipos (Zod)
+- [x] T2 — AlreadyAcceptedError + quotes.routes (POST quote)
+- [x] T3 — GET /services/:id/quotes
+- [x] T4 — POST /quotes/:id/accept + Payment stub
+- [x] T5 — Mount routers + routes/index.ts
+- [x] T6 — Unit tests Zod schemas (TDD)
+- [x] T7 — Db smoke quotes lifecycle (TDD)
+- [x] T8 — README + testing docs

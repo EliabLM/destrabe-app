@@ -89,6 +89,22 @@ Db smoke end-to-end de los 4 endpoints de `/services` (cambio-004 / REQ-002/003/
 
 Casos cubiertos: POST (201 PENDING + ClientProfile lazy; 401 sin auth; 403 non-CLIENT), GET /:id (dueño completo / operador público / ajeno 404 / inexistente 404), PATCH (PENDING→CANCELLED 200; ilegal 409), GET /nearby (PENDING 1km dentro / ~10km fora / COMPLETED fora; 403 non-OPERATOR), init_postgis idempotente (`pg_extension` + `CREATE EXTENSION IF NOT EXISTS`).
 
+### Suite quotes lifecycle (`quotes.lifecycle.test.ts`)
+
+Db smoke end-to-end de los 3 endpoints de quotes (cambio-005 / REQ-001..007). Autentica CLIENT y OPERATOR vía OTP y ejercita el flujo core: cotizar → aceptar → ACTIVE + Payment stub.
+
+| Aspecto         | Valor                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------- |
+| Suite           | db (`vitest.db.config.ts`, `fileParallelism=false`)                                                             |
+| Requiere        | Postgres+PostGIS up + Redis up (`db:up`) + migración `init_postgis`                                             |
+| Cookie jar      | `supertest.agent(createApp())` por usuario; client + operator + operator2 + client2 en el mismo test            |
+| Mock plivo      | `vi.mock('../../src/lib/plivo', ...)` captura el OTP para `/verify`                                             |
+| Mock queue      | `vi.mock('../../src/lib/queue', ...)` no-op `enqueueServiceExpiry` — evita Redis connection al importar         |
+| Helper operator | `authenticateOperatorWithProfile(phone)` — OTP flow + `user.update({role:OPERATOR})` + `operatorProfile.create` |
+| Limpieza        | `truncateAll` de 11 tablas (incluye Quote/Payment) CASCADE por test                                             |
+
+Casos cubiertos: POST quote (PENDING→QUOTED 201; segunda quote QUOTED no transiciona; 422 sin OperatorProfile; 409 ACTIVE; 403 non-OPERATOR; 401), GET quotes (dueño todas + operator data; operador solo suyas; ajeno 404), POST accept (QUOTED→ACTIVE + Payment stub + acceptedQuoteId; 409 doble-accept ALREADY_ACCEPTED; 403 no-dueño).
+
 ## Próximos dominios (futuro)
 
 - **app/ (RN)**: Jest + jest-expo + @testing-library/react-native. Se documentará al iniciar el cambio mobile.

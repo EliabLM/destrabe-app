@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { ZodError } from 'zod';
-import { createQuoteSchema, acceptQuoteSchema } from '../src/schemas/service.schema';
+import {
+  createQuoteSchema,
+  acceptQuoteSchema,
+} from '../src/schemas/service.schema';
 
 describe('createQuoteSchema (REQ-004)', () => {
   it('parses a valid body with all fields', () => {
