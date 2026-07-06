@@ -71,12 +71,10 @@ serviceQuotesRouter.post(
         service.status !== ServiceStatus.PENDING &&
         service.status !== ServiceStatus.QUOTED
       ) {
-        return res
-          .status(409)
-          .json({
-            error: 'Service not accepting quotes',
-            code: 'INVALID_TRANSITION',
-          });
+        return res.status(409).json({
+          error: 'Service not accepting quotes',
+          code: 'INVALID_TRANSITION',
+        });
       }
 
       // REQ-001: OperatorProfile preexistente requerido
