@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { StubPaymentGateway, AlreadyProcessedError } from '../src/services/paymentGateway';
+import {
+  StubPaymentGateway,
+  AlreadyProcessedError,
+} from '../src/services/paymentGateway';
 import { getPaymentGateway } from '../src/services/paymentFactory';
 
 /**
@@ -66,7 +69,9 @@ describe('getPaymentGateway factory (REQ-005)', () => {
   });
 
   it('throws for unknown gateway', () => {
-    expect(() => getPaymentGateway('unknown')).toThrow('Unknown payment gateway');
+    expect(() => getPaymentGateway('unknown')).toThrow(
+      'Unknown payment gateway',
+    );
   });
 });
 

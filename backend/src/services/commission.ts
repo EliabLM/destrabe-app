@@ -9,7 +9,7 @@ export function calculateCommission(
   amount: number,
   rate: number,
 ): { commission: number; operatorAmount: number } {
-  const commission = Math.round(amount * rate / 100);
+  const commission = Math.round((amount * rate) / 100);
   const operatorAmount = amount - commission;
   return { commission, operatorAmount };
 }

@@ -45,9 +45,7 @@ paymentsRouter.post(
       // REQ-001: Ownership — solo el CLIENT dueño del service
       const isOwner = payment.service.client.userId === user.id;
       if (!isOwner) {
-        return res
-          .status(403)
-          .json({ error: 'Forbidden', code: 'FORBIDDEN' });
+        return res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
       }
 
       // REQ-001: Solo PENDING puede iniciarse
@@ -106,9 +104,7 @@ paymentsRouter.post(
       }
 
       const sr = req as PaymentRequest;
-      const { paymentId, status, gatewayReference } = sr.validated![
-        'body'
-      ] as {
+      const { paymentId, status, gatewayReference } = sr.validated!['body'] as {
         paymentId: string;
         status: 'CONFIRMED' | 'FAILED';
         gatewayReference?: string;

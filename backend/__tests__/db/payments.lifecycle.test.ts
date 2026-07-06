@@ -224,9 +224,7 @@ describe('POST /payments/:id/init (REQ-001)', () => {
   });
 
   it('401 sin autenticación', async () => {
-    const res = await request(createApp()).post(
-      '/payments/some-id/init',
-    );
+    const res = await request(createApp()).post('/payments/some-id/init');
     expect(res.status).toBe(401);
   });
 });

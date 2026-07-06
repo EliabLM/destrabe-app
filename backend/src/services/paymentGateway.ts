@@ -10,14 +10,12 @@
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
 export interface PaymentGateway {
-  initPayment(
-    payment: {
-      id: string;
-      amount: number;
-      commission: number;
-      operatorAmount: number;
-    },
-  ): Promise<{ gatewayPaymentId: string; redirectUrl?: string }>;
+  initPayment(payment: {
+    id: string;
+    amount: number;
+    commission: number;
+    operatorAmount: number;
+  }): Promise<{ gatewayPaymentId: string; redirectUrl?: string }>;
 
   processWebhook(
     payload: unknown,
