@@ -142,12 +142,12 @@ Etapa `apply`: ejecutar T1→T11 con TDD. **Orchestrator:** pedir decisión de c
 
 ## Progreso apply
 
-- [ ] T1 — Shared schemas + tipos (Zod)
-- [ ] T2 — Env + deps + infra compose
-- [ ] T3 — serviceMachine pura (TDD)
-- [ ] T4 — validate middleware (TDD)
-- [ ] T5 — notifications stub (TDD)
-- [ ] T6 — queue.ts + serviceExpiry.job (TDD)
+- [x] T1 — Shared schemas + tipos (Zod)
+- [x] T2 — Env + deps + infra compose
+- [x] T3 — serviceMachine pura (TDD)
+- [x] T4 — validate middleware (TDD)
+- [x] T5 — notifications stub (TDD)
+- [x] T6 — queue.ts + serviceExpiry.job (TDD)
 - [ ] T7 — services.routes (POST+GET+PATCH)
 - [ ] T8 — Migración _init_postgis + nearby raw SQL
 - [ ] T9 — Db smoke lifecycle (TDD)
