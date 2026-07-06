@@ -8,14 +8,14 @@
 
 ## Review Workload Forecast
 
-| Field | Value |
-|-------|-------|
-| Estimated changed lines | 600-900 (7 new + 8 modified + 5 test + migración) |
-| 400-line budget risk | High |
-| Chained PRs recommended | Yes |
-| Suggested split | PR 1 (T1-T6 libs puros) → PR 2 (T7-T9 routes+migración+db smoke) → PR 3 (T10-T11 env tests+docs) |
-| Delivery strategy | ask-on-risk |
-| Chain strategy | pending |
+| Field                   | Value                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
+| Estimated changed lines | 600-900 (7 new + 8 modified + 5 test + migración)                                                |
+| 400-line budget risk    | High                                                                                             |
+| Chained PRs recommended | Yes                                                                                              |
+| Suggested split         | PR 1 (T1-T6 libs puros) → PR 2 (T7-T9 routes+migración+db smoke) → PR 3 (T10-T11 env tests+docs) |
+| Delivery strategy       | ask-on-risk                                                                                      |
+| Chain strategy          | pending                                                                                          |
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes

@@ -192,7 +192,11 @@ servicesRouter.get('/:id', async (req, res, next) => {
 
     if (isOperator) {
       // REQ-004: Operador ve público (sin datos sensibles del cliente)
-      const { client: _client, clientProfileId: _cpid, ...publicData } = service;
+      const {
+        client: _client,
+        clientProfileId: _cpid,
+        ...publicData
+      } = service;
       return res.json(publicData);
     }
 
@@ -233,12 +237,16 @@ servicesRouter.patch(
       if (user.role === UserRole.CLIENT) {
         // CLIENT can only cancel own services (PENDING→CANCELLED)
         if (!isOwner) {
-          return res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+          return res
+            .status(403)
+            .json({ error: 'Forbidden', code: 'FORBIDDEN' });
         }
       } else if (user.role === UserRole.OPERATOR) {
         // OPERATOR can only complete assigned services (ACTIVE→COMPLETED)
         if (targetStatus !== ServiceStatus.COMPLETED) {
-          return res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+          return res
+            .status(403)
+            .json({ error: 'Forbidden', code: 'FORBIDDEN' });
         }
         if (!service.acceptedQuoteId) {
           return res.status(409).json({

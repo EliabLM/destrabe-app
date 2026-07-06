@@ -60,9 +60,8 @@ describe('expirePendingService (REQ-006)', () => {
       status: ServiceStatus.CANCELLED,
     });
 
-    const { expirePendingService } = await import(
-      '../src/jobs/serviceExpiry.job'
-    );
+    const { expirePendingService } =
+      await import('../src/jobs/serviceExpiry.job');
     await expirePendingService('svc-1');
 
     // Should assert transition (PENDING → CANCELLED by system) then persist
@@ -86,9 +85,8 @@ describe('expirePendingService (REQ-006)', () => {
       clientProfileId: 'cp-789',
     });
 
-    const { expirePendingService } = await import(
-      '../src/jobs/serviceExpiry.job'
-    );
+    const { expirePendingService } =
+      await import('../src/jobs/serviceExpiry.job');
     await expirePendingService('svc-2');
 
     expect(prismaUpdateMock).not.toHaveBeenCalled();
@@ -98,9 +96,8 @@ describe('expirePendingService (REQ-006)', () => {
   it('does nothing when service does not exist (idempotent)', async () => {
     prismaFindUniqueMock.mockResolvedValue(null);
 
-    const { expirePendingService } = await import(
-      '../src/jobs/serviceExpiry.job'
-    );
+    const { expirePendingService } =
+      await import('../src/jobs/serviceExpiry.job');
     await expirePendingService('svc-nonexistent');
 
     expect(prismaUpdateMock).not.toHaveBeenCalled();
@@ -113,9 +110,8 @@ describe('expirePendingService (REQ-006)', () => {
       status: ServiceStatus.ACTIVE,
     });
 
-    const { expirePendingService } = await import(
-      '../src/jobs/serviceExpiry.job'
-    );
+    const { expirePendingService } =
+      await import('../src/jobs/serviceExpiry.job');
     await expirePendingService('svc-3');
 
     expect(prismaUpdateMock).not.toHaveBeenCalled();

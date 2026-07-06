@@ -29,16 +29,46 @@ const ALL_ACTORS: Actor[] = ['CLIENT', 'OPERATOR', 'ADMIN', 'system'];
 
 const LEGAL: TransitionCase[] = [
   // PENDING → QUOTED: system
-  { from: ServiceStatus.PENDING, to: ServiceStatus.QUOTED, actor: 'system', expected: true },
+  {
+    from: ServiceStatus.PENDING,
+    to: ServiceStatus.QUOTED,
+    actor: 'system',
+    expected: true,
+  },
   // PENDING → CANCELLED: CLIENT, system
-  { from: ServiceStatus.PENDING, to: ServiceStatus.CANCELLED, actor: 'CLIENT', expected: true },
-  { from: ServiceStatus.PENDING, to: ServiceStatus.CANCELLED, actor: 'system', expected: true },
+  {
+    from: ServiceStatus.PENDING,
+    to: ServiceStatus.CANCELLED,
+    actor: 'CLIENT',
+    expected: true,
+  },
+  {
+    from: ServiceStatus.PENDING,
+    to: ServiceStatus.CANCELLED,
+    actor: 'system',
+    expected: true,
+  },
   // QUOTED → ACTIVE: CLIENT
-  { from: ServiceStatus.QUOTED, to: ServiceStatus.ACTIVE, actor: 'CLIENT', expected: true },
+  {
+    from: ServiceStatus.QUOTED,
+    to: ServiceStatus.ACTIVE,
+    actor: 'CLIENT',
+    expected: true,
+  },
   // QUOTED → CANCELLED: CLIENT
-  { from: ServiceStatus.QUOTED, to: ServiceStatus.CANCELLED, actor: 'CLIENT', expected: true },
+  {
+    from: ServiceStatus.QUOTED,
+    to: ServiceStatus.CANCELLED,
+    actor: 'CLIENT',
+    expected: true,
+  },
   // ACTIVE → COMPLETED: OPERATOR
-  { from: ServiceStatus.ACTIVE, to: ServiceStatus.COMPLETED, actor: 'OPERATOR', expected: true },
+  {
+    from: ServiceStatus.ACTIVE,
+    to: ServiceStatus.COMPLETED,
+    actor: 'OPERATOR',
+    expected: true,
+  },
 ];
 
 // ─── AssertTransition should throw for any case where canTransition is false ──
@@ -55,16 +85,14 @@ describe('canTransition (REQ-001)', () => {
 
   describe('illegal transitions return false', () => {
     // Every (from, to) pair NOT in LEGAL should be false for every actor
-    const legalSet = new Set(
-      LEGAL.map((c) => `${c.from}→${c.to}→${c.actor}`),
-    );
+    const legalSet = new Set(LEGAL.map((c) => `${c.from}→${c.to}→${c.actor}`));
 
     it.each<{ from: ServiceStatus; to: ServiceStatus; actor: Actor }>(
       ALL_STATUSES.flatMap((from) =>
         ALL_STATUSES.flatMap((to) =>
-          ALL_ACTORS
-            .filter((actor) => !legalSet.has(`${from}→${to}→${actor}`))
-            .map((actor) => ({ from, to, actor })),
+          ALL_ACTORS.filter(
+            (actor) => !legalSet.has(`${from}→${to}→${actor}`),
+          ).map((actor) => ({ from, to, actor })),
         ),
       ),
     )('$from → $to by $actor → false', ({ from, to, actor }) => {
@@ -91,35 +119,42 @@ describe('assertTransition (REQ-001)', () => {
     ];
 
     // ACTIVE → CANCELLED is explicitly not permitted per REQ-001
-    const EXPLICITLY_ILLEGAL: { from: ServiceStatus; to: ServiceStatus; actor: Actor }[] = [
-      { from: ServiceStatus.ACTIVE, to: ServiceStatus.CANCELLED, actor: 'CLIENT' },
-      { from: ServiceStatus.ACTIVE, to: ServiceStatus.CANCELLED, actor: 'system' },
+    const EXPLICITLY_ILLEGAL: {
+      from: ServiceStatus;
+      to: ServiceStatus;
+      actor: Actor;
+    }[] = [
+      {
+        from: ServiceStatus.ACTIVE,
+        to: ServiceStatus.CANCELLED,
+        actor: 'CLIENT',
+      },
+      {
+        from: ServiceStatus.ACTIVE,
+        to: ServiceStatus.CANCELLED,
+        actor: 'system',
+      },
     ];
 
     it.each([
       // Terminal → any
       ...TERMINAL.flatMap((from) =>
-        ALL_STATUSES
-          .filter((to) => to !== from)
-          .flatMap((to) =>
-            ALL_ACTORS.map((actor) => ({ from, to, actor })),
-          ),
+        ALL_STATUSES.filter((to) => to !== from).flatMap((to) =>
+          ALL_ACTORS.map((actor) => ({ from, to, actor })),
+        ),
       ),
       // ACTIVE → CANCELLED (explicitly illegal)
       ...EXPLICITLY_ILLEGAL,
-    ])(
-      '$from → $to by $actor throws ConflictError',
-      ({ from, to, actor }) => {
-        expect(() => assertTransition(from, to, actor)).toThrow(ConflictError);
-        try {
-          assertTransition(from, to, actor);
-        } catch (e) {
-          const err = e as ConflictError;
-          expect(err.status).toBe(409);
-          expect(err.code).toBe('INVALID_TRANSITION');
-        }
-      },
-    );
+    ])('$from → $to by $actor throws ConflictError', ({ from, to, actor }) => {
+      expect(() => assertTransition(from, to, actor)).toThrow(ConflictError);
+      try {
+        assertTransition(from, to, actor);
+      } catch (e) {
+        const err = e as ConflictError;
+        expect(err.status).toBe(409);
+        expect(err.code).toBe('INVALID_TRANSITION');
+      }
+    });
   });
 
   describe('unauthorized actor returns false / throws', () => {
@@ -132,14 +167,22 @@ describe('assertTransition (REQ-001)', () => {
 
     it('PENDING → QUOTED by OPERATOR throws ConflictError', () => {
       expect(() =>
-        assertTransition(ServiceStatus.PENDING, ServiceStatus.QUOTED, 'OPERATOR'),
+        assertTransition(
+          ServiceStatus.PENDING,
+          ServiceStatus.QUOTED,
+          'OPERATOR',
+        ),
       ).toThrow(ConflictError);
     });
 
     // ACTIVE → COMPLETED is legal only by OPERATOR
     it('ACTIVE → COMPLETED by CLIENT throws ConflictError', () => {
       expect(() =>
-        assertTransition(ServiceStatus.ACTIVE, ServiceStatus.COMPLETED, 'CLIENT'),
+        assertTransition(
+          ServiceStatus.ACTIVE,
+          ServiceStatus.COMPLETED,
+          'CLIENT',
+        ),
       ).toThrow(ConflictError);
     });
   });
@@ -147,7 +190,9 @@ describe('assertTransition (REQ-001)', () => {
 
 describe('ConflictError class', () => {
   it('has status=409, code="INVALID_TRANSITION", and message', () => {
-    const err = new ConflictError('Cannot transition from PENDING to COMPLETED');
+    const err = new ConflictError(
+      'Cannot transition from PENDING to COMPLETED',
+    );
     expect(err).toBeInstanceOf(Error);
     expect(err.status).toBe(409);
     expect(err.code).toBe('INVALID_TRANSITION');

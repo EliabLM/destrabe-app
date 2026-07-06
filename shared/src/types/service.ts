@@ -12,4 +12,8 @@ export enum ServiceType {
 }
 
 // `z.infer` inferred types from Zod schemas (source of truth in schemas/)
-export type { CreateServiceInput, NearbyServicesQuery, UpdateServiceStatusInput } from '../schemas/service.schema';
+export type {
+  CreateServiceInput,
+  NearbyServicesQuery,
+  UpdateServiceStatusInput,
+} from '../schemas/service.schema';

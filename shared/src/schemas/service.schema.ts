@@ -44,4 +44,6 @@ export const updateServiceStatusSchema = z.object({
 
 export type CreateServiceInput = z.infer<typeof createServiceSchema>;
 export type NearbyServicesQuery = z.infer<typeof nearbyServicesQuerySchema>;
-export type UpdateServiceStatusInput = z.infer<typeof updateServiceStatusSchema>;
+export type UpdateServiceStatusInput = z.infer<
+  typeof updateServiceStatusSchema
+>;

@@ -11,10 +11,10 @@ Implementar el ciclo de vida de `Service` (§7.2): crear solicitudes `PENDING`, 
 
 ### In scope
 
-- **`serviceMachine.ts`** *(nuevo, puro)* — `canTransition`/`assertTransition` (estado + rol). Define todas las transiciones; en runtime ejercita `PENDING→CANCELLED` y `ACTIVE→COMPLETED`.
-- **`services.routes.ts`** *(nuevo)* — `POST /services` (`requireRole(CLIENT)`, ClientProfile lazy), `GET /services/nearby` (`requireRole(OPERATOR)`, raw SQL `ST_DWithin` 5 km), `GET /services/:id`, `PATCH /services/:id/status` (cliente→`ACTIVE` requiere `acceptedQuoteId`).
-- **`validate.ts`** *(nuevo mw)* — factory Zod → 400 `VALIDATION_ERROR`.
-- **`queue.ts` + `serviceExpiry.job.ts`** *(nuevo)* — BullMQ enqueue en `POST /services` (delay `SERVICE_TIMEOUT_MINUTES*60_000`); `expirePendingService` pura + `notifyClient` log.
+- **`serviceMachine.ts`** _(nuevo, puro)_ — `canTransition`/`assertTransition` (estado + rol). Define todas las transiciones; en runtime ejercita `PENDING→CANCELLED` y `ACTIVE→COMPLETED`.
+- **`services.routes.ts`** _(nuevo)_ — `POST /services` (`requireRole(CLIENT)`, ClientProfile lazy), `GET /services/nearby` (`requireRole(OPERATOR)`, raw SQL `ST_DWithin` 5 km), `GET /services/:id`, `PATCH /services/:id/status` (cliente→`ACTIVE` requiere `acceptedQuoteId`).
+- **`validate.ts`** _(nuevo mw)_ — factory Zod → 400 `VALIDATION_ERROR`.
+- **`queue.ts` + `serviceExpiry.job.ts`** _(nuevo)_ — BullMQ enqueue en `POST /services` (delay `SERVICE_TIMEOUT_MINUTES*60_000`); `expirePendingService` pura + `notifyClient` log.
 - **`env.ts`** — `REDIS_URL`, `SERVICE_TIMEOUT_MINUTES` (15), `NEARBY_RADIUS_KM` (5). **Deps** — `bullmq`, `ioredis`. **Compose** — `redis:7-alpine` + volumen.
 - **Migración `_init_postgis`** — `CREATE EXTENSION IF NOT EXISTS postgis;`.
 - **`shared/`** — `createServiceSchema`, `nearbyServicesQuerySchema`, `updateServiceStatusSchema` + `z.infer`.
@@ -38,11 +38,11 @@ Máquina pura + `validate` mw + 4 endpoints + BullMQ/Redis + PostGIS raw SQL (si
 
 ## Affected Areas
 
-| Área | Impacto |
-|------|---------|
-| `services/serviceMachine.ts`, `routes/services.routes.ts`, `middleware/validate.ts`, `lib/queue.ts`, `jobs/serviceExpiry.job.ts` | New |
-| `lib/env.ts`, `package.json`, `docker-compose.dev.yml`, `shared/src/{schemas,types}/service.*` | Modified |
-| `prisma/migrations/*_init_postgis/` | New |
+| Área                                                                                                                             | Impacto  |
+| -------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `services/serviceMachine.ts`, `routes/services.routes.ts`, `middleware/validate.ts`, `lib/queue.ts`, `jobs/serviceExpiry.job.ts` | New      |
+| `lib/env.ts`, `package.json`, `docker-compose.dev.yml`, `shared/src/{schemas,types}/service.*`                                   | Modified |
+| `prisma/migrations/*_init_postgis/`                                                                                              | New      |
 
 ## Risks
 

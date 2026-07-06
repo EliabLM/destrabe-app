@@ -109,9 +109,7 @@ async function authenticateAs(
   role: UserRole = UserRole.CLIENT,
 ) {
   const agent = request.agent(createApp());
-  await agent
-    .post('/api/auth/phone-number/send-otp')
-    .send({ phoneNumber });
+  await agent.post('/api/auth/phone-number/send-otp').send({ phoneNumber });
   const code = capturedSendOtps.at(-1)!.code;
   const verifyRes = await agent
     .post('/api/auth/phone-number/verify')
@@ -135,7 +133,10 @@ async function seedService(opts: {
   phoneNumber?: string;
 }) {
   const user = await prisma.user.create({
-    data: { phoneNumber: opts.phoneNumber ?? `+57300${Math.random().toString(36).slice(2, 8)}` },
+    data: {
+      phoneNumber:
+        opts.phoneNumber ?? `+57300${Math.random().toString(36).slice(2, 8)}`,
+    },
   });
   const cp = await prisma.clientProfile.create({ data: { userId: user.id } });
   return prisma.service.create({

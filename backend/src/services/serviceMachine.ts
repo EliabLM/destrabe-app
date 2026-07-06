@@ -43,7 +43,10 @@ export class ConflictError extends Error {
  * Quoted/Active transitions are covered here (unit); they may be unreachable
  * at runtime until quotes are implemented (cambio-005).
  */
-const TRANSITIONS: Record<ServiceStatus, Partial<Record<ServiceStatus, Actor[]>>> = {
+const TRANSITIONS: Record<
+  ServiceStatus,
+  Partial<Record<ServiceStatus, Actor[]>>
+> = {
   [ServiceStatus.PENDING]: {
     [ServiceStatus.QUOTED]: ['system'],
     [ServiceStatus.CANCELLED]: ['CLIENT', 'system'],

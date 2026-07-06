@@ -55,7 +55,9 @@ export function parseEnv(
   // REDIS_URL is required in non-test environments
   if (nodeEnv !== 'test' && !input.REDIS_URL) {
     throw new Error(
-      'REDIS_URL is required in ' + nodeEnv + ' environment. Set REDIS_URL in your .env file.',
+      'REDIS_URL is required in ' +
+        nodeEnv +
+        ' environment. Set REDIS_URL in your .env file.',
     );
   }
 

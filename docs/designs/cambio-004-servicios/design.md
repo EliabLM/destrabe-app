@@ -15,32 +15,32 @@ Máquina de estados **pura** sin IO (`serviceMachine.ts`) como contrato reutiliz
 
 ### D1 — FSM: módulo puro + tabla estática
 
-| Opción | Tradeoff | Decisión |
-|---|---|---|
-| Tabla estática `Record<from,Record<to,Role[]>>` + funcs puras | Requiere disciplina de uso en todas las mutaciones | ✅ Elegida |
-| Clase con estado | Acoplamiento instancia, innecesario | ✗ |
-| `switch` enum inline | Duplica lógica en routes+worker, no testeable sin Express | ✗ |
+| Opción                                                        | Tradeoff                                                  | Decisión   |
+| ------------------------------------------------------------- | --------------------------------------------------------- | ---------- |
+| Tabla estática `Record<from,Record<to,Role[]>>` + funcs puras | Requiere disciplina de uso en todas las mutaciones        | ✅ Elegida |
+| Clase con estado                                              | Acoplamiento instancia, innecesario                       | ✗          |
+| `switch` enum inline                                          | Duplica lógica en routes+worker, no testeable sin Express | ✗          |
 
 **Rationale:** 100% unit-testeable, reutilizable por routes + worker sin acoplarse a Prisma. Toda la tabla (incl. quotes) se cubre en unit; en runtime solo se ejercitan `PENDING→CANCELLED` y `ACTIVE→COMPLETED`.
 
 ### D2 — Timer BullMQ + Redis ahora
 
-| Opción | Tradeoff | Decisión |
-|---|---|---|
+| Opción                                | Tradeoff                                        | Decisión   |
+| ------------------------------------- | ----------------------------------------------- | ---------- |
 | BullMQ + `ioredis` (redis en compose) | Suma servicio infra; tests unit mockean enqueue | ✅ Elegida |
-| Defer timer a cambio-005 | Deja flujo demo manco; `PENDING` cuelga | ✗ |
-| `setTimeout` in-process | No sobrevive reinicios; impreciso bajo load | ✗ |
-| `node-cron` | No delay exacto desde `expiresAt` | ✗ |
+| Defer timer a cambio-005              | Deja flujo demo manco; `PENDING` cuelga         | ✗          |
+| `setTimeout` in-process               | No sobrevive reinicios; impreciso bajo load     | ✗          |
+| `node-cron`                           | No delay exacto desde `expiresAt`               | ✗          |
 
 **Rationale:** El timer es core a §7.2 (no decorativo). BullMQ da delay jobs exactos e idempotentes; `expirePendingService` aislada evita depender de Redis/15 min en tests.
 
 ### D3 — Geo-query PostGIS raw SQL
 
-| Opción | Tradeoff | Decisión |
-|---|---|---|
-| `$queryRaw` `ST_DWithin` + migración `CREATE EXTENSION` | Mapeo manual de columnas; Prisma no tipa el resultado | ✅ Elegida |
-| `previewFeatures=["postgis"]` | Rompe schema `Float` → migración destructiva + reintegra tests cambio-002 | ✗ |
-| Haversine en JS | O(n) en memoria, menos preciso a escala | ✗ (fallback doc) |
+| Opción                                                  | Tradeoff                                                                  | Decisión         |
+| ------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------- |
+| `$queryRaw` `ST_DWithin` + migración `CREATE EXTENSION` | Mapeo manual de columnas; Prisma no tipa el resultado                     | ✅ Elegida       |
+| `previewFeatures=["postgis"]`                           | Rompe schema `Float` → migración destructiva + reintegra tests cambio-002 | ✗                |
+| Haversine en JS                                         | O(n) en memoria, menos preciso a escala                                   | ✗ (fallback doc) |
 
 **Rationale:** Imagen `postgis` elegida en cambio-002 ex profeso para `/nearby`. Raw SQL con binds (no interpolación) es eficiente, preciso y no rompe el modelo.
 
@@ -76,24 +76,24 @@ Worker BullMQ (delay=15min) ─▶ expirePendingService(serviceId)
 
 ## 4. File Changes
 
-| File | Action | Descripción |
-|------|--------|-------------|
-| `backend/src/services/serviceMachine.ts` | Create | FSM pura: tabla de transiciones, `canTransition`/`assertTransition`, `ConflictError` |
-| `backend/src/routes/services.routes.ts` | Create | 4 endpoints bajo `requireAuth`+`requireRole`+`validate` |
-| `backend/src/middleware/validate.ts` | Create | factory Zod → 400 `VALIDATION_ERROR` |
-| `backend/src/lib/queue.ts` | Create | singleton BullMQ `Queue` + factory `Worker` (lazy `ioredis`) |
-| `backend/src/jobs/serviceExpiry.job.ts` | Create | `expirePendingService(serviceId)` pura + registro del worker |
-| `backend/src/lib/notifications.ts` | Create | `notifyClient(service, event)` log-only |
-| `backend/prisma/migrations/{ts}_init_postgis/migration.sql` | Create | `CREATE EXTENSION IF NOT EXISTS postgis;` |
-| `backend/src/routes/index.ts` | Modify | montar `servicesRouter` en `/services` |
-| `backend/src/lib/env.ts` | Modify | `REDIS_URL` (req dev/prod, opt test), `SERVICE_TIMEOUT_MINUTES`(15), `NEARBY_RADIUS_KM`(5) |
-| `backend/.env`, `backend/.env.example` | Modify | nuevas vars |
-| `backend/package.json` | Modify | deps `bullmq`, `ioredis` |
-| `infra/docker-compose.dev.yml` | Modify | servicio `redis:7-alpine` + volumen `destrabe_redis_dev` + healthcheck |
-| `shared/src/schemas/service.schema.ts` | Modify | `createServiceSchema`, `nearbyServicesQuerySchema`, `updateServiceStatusSchema` |
-| `shared/src/types/service.ts` | Modify | tipos `z.infer` (`CreateServiceInput`, etc.) |
-| `shared/src/{schemas,types}/index.ts` | Modify | barrels (ya hacen `export *` — solo nueva exports) |
-| `backend/__tests__/db/helpers.ts` | Verify | `resetDb` ya incluye Service/Quote/Message/Payment/Review — solo confirmar |
+| File                                                        | Action | Descripción                                                                                |
+| ----------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------ |
+| `backend/src/services/serviceMachine.ts`                    | Create | FSM pura: tabla de transiciones, `canTransition`/`assertTransition`, `ConflictError`       |
+| `backend/src/routes/services.routes.ts`                     | Create | 4 endpoints bajo `requireAuth`+`requireRole`+`validate`                                    |
+| `backend/src/middleware/validate.ts`                        | Create | factory Zod → 400 `VALIDATION_ERROR`                                                       |
+| `backend/src/lib/queue.ts`                                  | Create | singleton BullMQ `Queue` + factory `Worker` (lazy `ioredis`)                               |
+| `backend/src/jobs/serviceExpiry.job.ts`                     | Create | `expirePendingService(serviceId)` pura + registro del worker                               |
+| `backend/src/lib/notifications.ts`                          | Create | `notifyClient(service, event)` log-only                                                    |
+| `backend/prisma/migrations/{ts}_init_postgis/migration.sql` | Create | `CREATE EXTENSION IF NOT EXISTS postgis;`                                                  |
+| `backend/src/routes/index.ts`                               | Modify | montar `servicesRouter` en `/services`                                                     |
+| `backend/src/lib/env.ts`                                    | Modify | `REDIS_URL` (req dev/prod, opt test), `SERVICE_TIMEOUT_MINUTES`(15), `NEARBY_RADIUS_KM`(5) |
+| `backend/.env`, `backend/.env.example`                      | Modify | nuevas vars                                                                                |
+| `backend/package.json`                                      | Modify | deps `bullmq`, `ioredis`                                                                   |
+| `infra/docker-compose.dev.yml`                              | Modify | servicio `redis:7-alpine` + volumen `destrabe_redis_dev` + healthcheck                     |
+| `shared/src/schemas/service.schema.ts`                      | Modify | `createServiceSchema`, `nearbyServicesQuerySchema`, `updateServiceStatusSchema`            |
+| `shared/src/types/service.ts`                               | Modify | tipos `z.infer` (`CreateServiceInput`, etc.)                                               |
+| `shared/src/{schemas,types}/index.ts`                       | Modify | barrels (ya hacen `export *` — solo nueva exports)                                         |
+| `backend/__tests__/db/helpers.ts`                           | Verify | `resetDb` ya incluye Service/Quote/Message/Payment/Review — solo confirmar                 |
 
 ## 5. Interfaces / Contracts
 
@@ -118,16 +118,16 @@ updateServiceStatusSchema  // {status: ServiceStatus}
 
 ## 6. Testing Strategy
 
-| Layer | Qué | Cómo |
-|-------|-----|------|
-| Unit | `serviceMachine` (TODAS las transiciones legales + ilegales → ConflictError) | table-driven, sin mocks |
-| Unit | `validate` (body ok/invalid; next/no-next) | Request/Response stub |
-| Unit | `notifications` (loggea `{event,serviceId,userId}`) | spy `console.log` |
-| Unit | `expirePendingService` (PENDING→CANCELLED; idempotente CANCELLED; calls notify) | mock prisma + notify |
-| Unit | enqueue `queue.add` (name, delay, data.serviceId) | spy BullMQ Queue |
-| DB smoke | lifecycle `POST → GET → PATCH(CANCELLED)` + 409 ilegal + 404 ajeno | supertest + cookie jar Better Auth (cambio-003) |
-| DB smoke | `/nearby` PostGIS (PENDING 1km dentro, PENDING 10km fuera, COMPLETED 1km fuera) | `$queryRaw` real |
-| DB smoke | `_init_postgis` idempotente (`pg_extension`) | `prisma.$queryRaw` |
+| Layer    | Qué                                                                             | Cómo                                            |
+| -------- | ------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Unit     | `serviceMachine` (TODAS las transiciones legales + ilegales → ConflictError)    | table-driven, sin mocks                         |
+| Unit     | `validate` (body ok/invalid; next/no-next)                                      | Request/Response stub                           |
+| Unit     | `notifications` (loggea `{event,serviceId,userId}`)                             | spy `console.log`                               |
+| Unit     | `expirePendingService` (PENDING→CANCELLED; idempotente CANCELLED; calls notify) | mock prisma + notify                            |
+| Unit     | enqueue `queue.add` (name, delay, data.serviceId)                               | spy BullMQ Queue                                |
+| DB smoke | lifecycle `POST → GET → PATCH(CANCELLED)` + 409 ilegal + 404 ajeno              | supertest + cookie jar Better Auth (cambio-003) |
+| DB smoke | `/nearby` PostGIS (PENDING 1km dentro, PENDING 10km fuera, COMPLETED 1km fuera) | `$queryRaw` real                                |
+| DB smoke | `_init_postgis` idempotente (`pg_extension`)                                    | `prisma.$queryRaw`                              |
 
 **Notas:** No esperar 15 min — el timer se testea llamando `expirePendingService` directa. Reutilizar `seedUser`+`resetDb` (helpers ya cubren las tablas del dominio). `QUOTED`/`ACTIVE` inalcanzables en runtime → comentario explícito en routes; cubiertos en unit del machine.
 
