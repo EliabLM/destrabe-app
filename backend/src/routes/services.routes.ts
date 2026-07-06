@@ -13,6 +13,7 @@ import { prisma } from '../lib/prisma';
 import { env } from '../lib/env';
 import { assertTransition } from '../services/serviceMachine';
 import { enqueueServiceExpiry } from '../lib/queue';
+import { PaymentPendingError } from '../services/paymentGateway';
 
 /**
  * Combined request type: authenticated (`user`) + validated (`validated`).
@@ -267,6 +268,19 @@ servicesRouter.patch(
 
       // REQ-005 / REQ-001: FSM assertTransition
       assertTransition(fromStatus, targetStatus, user.role);
+
+      // REQ-005 / service-lifecycle: Guard de pago ACTIVE→COMPLETED
+      if (
+        fromStatus === ServiceStatus.ACTIVE &&
+        targetStatus === ServiceStatus.COMPLETED
+      ) {
+        const payment = await prisma.payment.findUnique({
+          where: { serviceId },
+        });
+        if (!payment || payment.status !== 'CONFIRMED') {
+          throw new PaymentPendingError();
+        }
+      }
 
       // REQ-005: Persist
       const updated = await prisma.service.update({
