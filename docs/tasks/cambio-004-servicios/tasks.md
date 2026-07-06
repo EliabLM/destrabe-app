@@ -148,8 +148,8 @@ Etapa `apply`: ejecutar T1→T11 con TDD. **Orchestrator:** pedir decisión de c
 - [x] T4 — validate middleware (TDD)
 - [x] T5 — notifications stub (TDD)
 - [x] T6 — queue.ts + serviceExpiry.job (TDD)
-- [ ] T7 — services.routes (POST+GET+PATCH)
-- [ ] T8 — Migración _init_postgis + nearby raw SQL
-- [ ] T9 — Db smoke lifecycle (TDD)
+- [x] T7 — services.routes (POST+GET+PATCH)
+- [x] T8 — Migración _init_postgis + nearby raw SQL
+- [x] T9 — Db smoke lifecycle (TDD)
 - [x] T10 — Ampliar tests env (TDD)
-- [ ] T11 — README + testing strategy docs
+- [x] T11 — README + testing strategy docs

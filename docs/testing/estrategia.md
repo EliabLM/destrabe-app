@@ -72,6 +72,23 @@ npm run test -w @destrabe/backend  # solo backend
 
 > **Desviación documentada:** las rutas reales del plugin `phoneNumber` son `/phone-number/send-otp` y `/phone-number/verify` (no `/phone/send-otp` y `/phone/verify-otp` como decía la spec §7.1). Ver ADR-003 y cabecera del test.
 
+### Suite services lifecycle (`services.lifecycle.test.ts`)
+
+Db smoke end-to-end de los 4 endpoints de `/services` (cambio-004 / REQ-002/003/004/005/010). Autentica CLIENT y OPERATOR vía el flujo OTP (reusa el mock de Plivo) y ejercita la FSM, la búsqueda PostGIS y la migración `init_postgis`.
+
+| Aspecto          | Valor                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Suite            | db (`vitest.db.config.ts`, `fileParallelism=false`)                                                                            |
+| Requiere         | Postgres+PostGIS up + Redis up (`db:up`) + migración `init_postgis` aplicada                                                   |
+| Cookie jar       | `supertest.agent(createApp())` por usuario; múltiples agentes por test (client, operator, client2)                             |
+| Mock plivo       | `vi.mock('../../src/lib/plivo', ...)` captura el OTP para reintegrarlo en `/verify`                                            |
+| Mock queue       | `vi.mock('../../src/lib/queue', ...)` no-op `enqueueServiceExpiry` — evita `new Queue`/`new IORedis` al cargar `queue.ts`       |
+| Helper rol       | `authenticateAs(phone, role)` — OTP flow + `prisma.user.update({role})` si no es CLIENT (getSession releé el rol de la fila)    |
+| Limpieza         | `TRUNCATE` de 11 tablas (Service, ClientProfile, User, Session, …) CASCADE por test                                            |
+| PostGIS          | `seedService({status, lat, lng})` siembra directamente; Bogotá 4.65/-74.10, ~10km = +0.09 deg lat                              |
+
+Casos cubiertos: POST (201 PENDING + ClientProfile lazy; 401 sin auth; 403 non-CLIENT), GET /:id (dueño completo / operador público / ajeno 404 / inexistente 404), PATCH (PENDING→CANCELLED 200; ilegal 409), GET /nearby (PENDING 1km dentro / ~10km fora / COMPLETED fora; 403 non-OPERATOR), init_postgis idempotente (`pg_extension` + `CREATE EXTENSION IF NOT EXISTS`).
+
 ## Próximos dominios (futuro)
 
 - **app/ (RN)**: Jest + jest-expo + @testing-library/react-native. Se documentará al iniciar el cambio mobile.
