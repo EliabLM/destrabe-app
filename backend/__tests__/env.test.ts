@@ -117,3 +117,95 @@ describe('parseEnv — auth vars (REQ-004)', () => {
     ).toThrow(/BETTER_AUTH_URL/);
   });
 });
+
+/**
+ * T10 — Ampliación tests env vars de servicio (REQ-008)
+ *
+ * Valida:
+ *  - REDIS_URL requerida en dev/prod, opcional en test (default aplicado)
+ *  - SERVICE_TIMEOUT_MINUTES default 15
+ *  - NEARBY_RADIUS_KM default 5
+ *
+ * Ver spec: docs/specs/cambio-004-servicios/spec.md (REQ-008)
+ */
+describe('parseEnv — service env vars T10 (REQ-008)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+
+  it('allows REDIS_URL to be absent in test mode (uses default)', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.REDIS_URL).toBe('redis://localhost:6379');
+  });
+
+  it('throws mentioning REDIS_URL when absent in development mode', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/REDIS_URL/);
+  });
+
+  it('throws mentioning REDIS_URL when absent in production mode', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/REDIS_URL/);
+  });
+
+  it('accepts REDIS_URL when explicitly provided in development', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      REDIS_URL: 'redis://custom:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.REDIS_URL).toBe('redis://custom:6379');
+  });
+
+  it('defaults SERVICE_TIMEOUT_MINUTES to 15 when absent', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.SERVICE_TIMEOUT_MINUTES).toBe(15);
+  });
+
+  it('accepts SERVICE_TIMEOUT_MINUTES override', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      SERVICE_TIMEOUT_MINUTES: '30',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.SERVICE_TIMEOUT_MINUTES).toBe(30);
+  });
+
+  it('defaults NEARBY_RADIUS_KM to 5 when absent', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.NEARBY_RADIUS_KM).toBe(5);
+  });
+
+  it('accepts NEARBY_RADIUS_KM override', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      NEARBY_RADIUS_KM: '10',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.NEARBY_RADIUS_KM).toBe(10);
+  });
+});

@@ -151,5 +151,5 @@ Etapa `apply`: ejecutar T1→T11 con TDD. **Orchestrator:** pedir decisión de c
 - [ ] T7 — services.routes (POST+GET+PATCH)
 - [ ] T8 — Migración _init_postgis + nearby raw SQL
 - [ ] T9 — Db smoke lifecycle (TDD)
-- [ ] T10 — Ampliar tests env (TDD)
+- [x] T10 — Ampliar tests env (TDD)
 - [ ] T11 — README + testing strategy docs
