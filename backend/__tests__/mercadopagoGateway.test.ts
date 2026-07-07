@@ -174,7 +174,7 @@ describe('MercadoPagoGateway (T5)', () => {
       );
     });
 
-    it('throws when HMAC validation fails', async () => {
+    it('throws 401 INVALID_SIGNATURE when HMAC validation fails', async () => {
       mockValidate.mockImplementationOnce(() => {
         throw new Error('HMAC signature mismatch');
       });
@@ -185,7 +185,11 @@ describe('MercadoPagoGateway (T5)', () => {
           { data: { id: MP_PAYMENT_ID } },
           { 'x-signature': 'bad-sig', 'x-request-id': 'req-1' },
         ),
-      ).rejects.toThrow('HMAC signature mismatch');
+      ).rejects.toMatchObject({
+        status: 401,
+        code: 'INVALID_SIGNATURE',
+        message: expect.stringContaining('Webhook signature validation failed'),
+      });
     });
   });
 

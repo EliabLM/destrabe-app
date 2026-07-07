@@ -100,13 +100,22 @@ export class MercadoPagoGateway implements PaymentGateway {
     // 1. Validar HMAC
     const dataIdStr = dataId as string | undefined;
 
-    WebhookSignatureValidator.validate({
-      xSignature: headers?.['x-signature'],
-      xRequestId: headers?.['x-request-id'],
-      dataId: dataIdStr,
-      secret: this.config.webhookSecret,
-      toleranceSeconds: 300,
-    });
+    try {
+      WebhookSignatureValidator.validate({
+        xSignature: headers?.['x-signature'],
+        xRequestId: headers?.['x-request-id'],
+        dataId: dataIdStr,
+        secret: this.config.webhookSecret,
+        toleranceSeconds: 300,
+      });
+    } catch (err) {
+      throw Object.assign(
+        new Error(
+          `Webhook signature validation failed: ${(err as Error).message}`,
+        ),
+        { status: 401, code: 'INVALID_SIGNATURE' },
+      );
+    }
 
     if (!dataIdStr) {
       throw Object.assign(new Error('Missing data.id in webhook payload'), {
