@@ -8,7 +8,10 @@ import { prisma } from '../lib/prisma';
 import { env } from '../lib/env';
 import { calculateCommission } from '../services/commission';
 import { getPaymentGateway } from '../services/paymentFactory';
-import { AlreadyProcessedError } from '../services/paymentGateway';
+import {
+  AlreadyProcessedError,
+  type WebhookHeaders,
+} from '../services/paymentGateway';
 
 /**
  * Payments routes — cambio-006 / REQ-001, REQ-002, REQ-004.
@@ -95,23 +98,15 @@ paymentsRouter.post(
   validate(webhookEventSchema, 'body'),
   async (req, res, next) => {
     try {
-      // REQ-002: Validar X-Webhook-Token
-      const token = req.headers['x-webhook-token'] as string | undefined;
-      if (!token || token !== env.PAYMENT_WEBHOOK_TOKEN) {
-        return res
-          .status(401)
-          .json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
-      }
-
-      const sr = req as PaymentRequest;
-      const { paymentId, status, gatewayReference } = sr.validated!['body'] as {
-        paymentId: string;
-        status: 'CONFIRMED' | 'FAILED';
-        gatewayReference?: string;
-      };
+      // T3: Delegar verificación + parseo al gateway
+      const gateway = getPaymentGateway();
+      const result = await gateway.processWebhook(
+        req.body,
+        req.headers as WebhookHeaders,
+      );
 
       const payment = await prisma.payment.findUnique({
-        where: { id: paymentId },
+        where: { id: result.paymentId },
       });
       if (!payment) {
         return res.status(404).json({ error: 'Not Found', code: 'NOT_FOUND' });
@@ -132,10 +127,10 @@ paymentsRouter.post(
       const updated = await prisma.payment.update({
         where: { id: payment.id },
         data: {
-          status,
+          status: result.status,
           commission,
           operatorAmount,
-          mpPaymentId: gatewayReference ?? payment.mpPaymentId,
+          mpPaymentId: result.gatewayReference ?? payment.mpPaymentId,
         },
       });
 

@@ -1,9 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   StubPaymentGateway,
   AlreadyProcessedError,
+  type WebhookHeaders,
 } from '../src/services/paymentGateway';
 import { getPaymentGateway } from '../src/services/paymentFactory';
+
+/** Webhook token coincidente con `TEST_DEFAULTS.PAYMENT_WEBHOOK_TOKEN` en env.ts */
+const VALID_TOKEN = 'test-webhook-token';
+const AUTH_HEADERS: WebhookHeaders = { 'x-webhook-token': VALID_TOKEN };
 
 /**
  * T4 — PaymentGateway + Stub + factory (REQ-005)
@@ -40,23 +45,51 @@ describe('StubPaymentGateway (REQ-005)', () => {
   });
 
   it('processWebhook returns CONFIRMED with paymentId from payload', async () => {
-    const result = await gateway.processWebhook({
-      paymentId: 'pay-123',
-      status: 'CONFIRMED',
-    });
+    const result = await gateway.processWebhook(
+      { paymentId: 'pay-123', status: 'CONFIRMED' },
+      AUTH_HEADERS,
+    );
 
     expect(result.paymentId).toBe('pay-123');
     expect(result.status).toBe('CONFIRMED');
   });
 
   it('processWebhook returns FAILED when payload status is FAILED', async () => {
-    const result = await gateway.processWebhook({
-      paymentId: 'pay-456',
-      status: 'FAILED',
-    });
+    const result = await gateway.processWebhook(
+      { paymentId: 'pay-456', status: 'FAILED' },
+      AUTH_HEADERS,
+    );
 
     expect(result.paymentId).toBe('pay-456');
     expect(result.status).toBe('FAILED');
+  });
+
+  it('processWebhook throws 401 when X-Webhook-Token is missing', async () => {
+    await expect(
+      gateway.processWebhook({ paymentId: 'pay-123', status: 'CONFIRMED' }),
+    ).rejects.toThrow('Invalid webhook token');
+  });
+
+  it('processWebhook throws 401 when X-Webhook-Token is wrong', async () => {
+    await expect(
+      gateway.processWebhook(
+        { paymentId: 'pay-123', status: 'CONFIRMED' },
+        { 'x-webhook-token': 'wrong-token' },
+      ),
+    ).rejects.toThrow('Invalid webhook token');
+  });
+
+  it('processWebhook thrown error has status=401 and code=UNAUTHORIZED', async () => {
+    try {
+      await gateway.processWebhook(
+        { paymentId: 'pay-123', status: 'CONFIRMED' },
+        { 'x-webhook-token': 'wrong-token' },
+      );
+      expect.unreachable('Should have thrown');
+    } catch (err: any) {
+      expect(err.status).toBe(401);
+      expect(err.code).toBe('UNAUTHORIZED');
+    }
   });
 });
 

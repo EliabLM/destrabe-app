@@ -1,13 +1,18 @@
 /**
- * PaymentGateway interface + StubPaymentGateway + errores (cambio-006 / REQ-005).
+ * PaymentGateway interface + StubPaymentGateway + errores (cambio-006 / REQ-005,
+ * cambio-007 / T3, T4).
  *
  * La interfaz abstrae el proveedor de pagos (stub para dev, MercadoPago en
  * cambio-007+). El StubPaymentGateway simula un gateway real:
  *  - initPayment → gatewayPaymentId determinístico `stub-{id}` + redirectUrl
- *  - processWebhook → extrae paymentId/status del payload, aprueba todo
+ *  - processWebhook → valida X-Webhook-Token, extrae paymentId/status del payload
  */
 
+import { env } from '../lib/env';
+
 // ─── Interfaces ──────────────────────────────────────────────────────────────
+
+export type WebhookHeaders = Record<string, string | string[] | undefined>;
 
 export interface PaymentGateway {
   initPayment(payment: {
@@ -19,7 +24,7 @@ export interface PaymentGateway {
 
   processWebhook(
     payload: unknown,
-    signature?: string,
+    headers?: WebhookHeaders,
   ): Promise<{
     paymentId: string;
     status: 'CONFIRMED' | 'FAILED';
@@ -44,12 +49,21 @@ export class StubPaymentGateway implements PaymentGateway {
 
   async processWebhook(
     payload: unknown,
-    _signature?: string,
+    headers?: WebhookHeaders,
   ): Promise<{
     paymentId: string;
     status: 'CONFIRMED' | 'FAILED';
     gatewayReference?: string;
   }> {
+    // REQ-002: Validar X-Webhook-Token (movido desde el route en T3)
+    const token = headers?.['x-webhook-token'];
+    if (typeof token !== 'string' || token !== env.PAYMENT_WEBHOOK_TOKEN) {
+      throw Object.assign(new Error('Invalid webhook token'), {
+        status: 401,
+        code: 'UNAUTHORIZED',
+      });
+    }
+
     const data = payload as { paymentId: string; status: string };
     return {
       paymentId: data.paymentId,
