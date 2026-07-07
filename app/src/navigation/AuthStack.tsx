@@ -1,25 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
-// Screen placeholders — real screens created in T9
-function PhonePlaceholder() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.title}>Phone Login</Text>
-      <Text>Phone input screen (T9)</Text>
-    </View>
-  );
-}
-
-function CodePlaceholder() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.title}>Verify Code</Text>
-      <Text>OTP verification screen (T9)</Text>
-    </View>
-  );
-}
+import PhoneScreen from '../screens/auth/PhoneScreen';
+import CodeScreen from '../screens/auth/CodeScreen';
 
 export type AuthStackParamList = {
   Phone: undefined;
@@ -33,19 +15,14 @@ export function AuthStack() {
     <Stack.Navigator initialRouteName="Phone">
       <Stack.Screen
         name="Phone"
-        component={PhonePlaceholder}
+        component={PhoneScreen}
         options={{ title: 'Ingresar' }}
       />
       <Stack.Screen
         name="Code"
-        component={CodePlaceholder}
+        component={CodeScreen}
         options={{ title: 'Código' }}
       />
     </Stack.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
-});
