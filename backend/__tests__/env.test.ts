@@ -428,3 +428,49 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
     ).toThrow(/MP_WEBHOOK_URL/);
   });
 });
+
+/**
+ * T1 — CORS_ORIGIN env var (cambio-008 / D4)
+ *
+ * Valida:
+ *  - CORS_ORIGIN default '*' cuando no se provee
+ *  - CORS_ORIGIN acepta valor custom
+ *  - CORS_ORIGIN acepta '*' explícito
+ */
+describe('parseEnv — CORS_ORIGIN (cambio-008 T1)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+
+  it('defaults CORS_ORIGIN to "*" when absent', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.CORS_ORIGIN).toBe('*');
+  });
+
+  it('accepts a custom CORS_ORIGIN value', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: 'https://app.destrabe.com',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+    });
+    expect(env.CORS_ORIGIN).toBe('https://app.destrabe.com');
+  });
+
+  it('accepts explicit "*" as CORS_ORIGIN', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: '*',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+    });
+    expect(env.CORS_ORIGIN).toBe('*');
+  });
+});
