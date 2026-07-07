@@ -1,34 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
-// Screen placeholders — real screens created in T12
-function AvailableTogglePlaceholder() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.title}>Disponibilidad</Text>
-      <Text>Available toggle screen (T12)</Text>
-    </View>
-  );
-}
-
-function NearbyServicesPlaceholder() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.title}>Servicios Cercanos</Text>
-      <Text>Nearby services screen (T12)</Text>
-    </View>
-  );
-}
-
-function ActiveServicePlaceholder() {
-  return (
-    <View style={styles.center}>
-      <Text style={styles.title}>Servicio Activo</Text>
-      <Text>Active service screen (T12)</Text>
-    </View>
-  );
-}
+import AvailableToggleScreen from '../screens/operator/AvailableToggleScreen';
+import NearbyServicesScreen from '../screens/operator/NearbyServicesScreen';
+import ActiveServiceScreen from '../screens/operator/ActiveServiceScreen';
 
 export type OperatorStackParamList = {
   AvailableToggle: undefined;
@@ -43,24 +17,19 @@ export function OperatorStack() {
     <Stack.Navigator initialRouteName="AvailableToggle">
       <Stack.Screen
         name="AvailableToggle"
-        component={AvailableTogglePlaceholder}
+        component={AvailableToggleScreen}
         options={{ title: 'Disponible' }}
       />
       <Stack.Screen
         name="NearbyServices"
-        component={NearbyServicesPlaceholder}
+        component={NearbyServicesScreen}
         options={{ title: 'Cercanos' }}
       />
       <Stack.Screen
         name="ActiveService"
-        component={ActiveServicePlaceholder}
+        component={ActiveServiceScreen}
         options={{ title: 'Activo' }}
       />
     </Stack.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
-});
