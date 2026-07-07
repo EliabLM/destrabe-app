@@ -16,9 +16,11 @@
     "ioredis": "^5.11.1",
     "mercadopago": "~3.2.0",
     "plivo": "^4.78.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.0",
     "@types/supertest": "^6.0.0",
