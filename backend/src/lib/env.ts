@@ -35,6 +35,14 @@ const envSchema = z.object({
   PAYMENT_GATEWAY: z.enum(['stub', 'mercadopago']).default('stub'),
   PAYMENT_COMMISSION_RATE: z.coerce.number().int().min(0).max(100).default(0),
   PAYMENT_WEBHOOK_TOKEN: z.string().optional(),
+  MP_ACCESS_TOKEN: z.string().optional(),
+  MP_WEBHOOK_SECRET: z.string().optional(),
+  MP_WEBHOOK_URL: z.string().url().optional(),
+  MP_SANDBOX: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((v) => v === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -56,7 +64,14 @@ export function parseEnv(
             input.PAYMENT_WEBHOOK_TOKEN ?? TEST_DEFAULTS.PAYMENT_WEBHOOK_TOKEN,
         }
       : input;
-  const parsed = envSchema.parse(withTestDefaults);
+
+  // REQ-MP-ENV: MP_SANDBOX default true in non-production
+  const withSandboxDefault = { ...withTestDefaults };
+  if (withSandboxDefault.MP_SANDBOX === undefined) {
+    withSandboxDefault.MP_SANDBOX =
+      nodeEnv !== 'production' ? 'true' : 'false';
+  }
+  const parsed = envSchema.parse(withSandboxDefault);
 
   // REDIS_URL is required in non-test environments
   if (nodeEnv !== 'test' && !input.REDIS_URL) {
@@ -74,6 +89,26 @@ export function parseEnv(
         nodeEnv +
         ' environment. Set PAYMENT_WEBHOOK_TOKEN in your .env file.',
     );
+  }
+
+  // REQ-MP-ENV: MP_* vars required when PAYMENT_GATEWAY=mercadopago AND NODE_ENV=production
+  const gateway = parsed.PAYMENT_GATEWAY;
+  if (gateway === 'mercadopago' && parsed.NODE_ENV === 'production') {
+    if (!input.MP_ACCESS_TOKEN) {
+      throw new Error(
+        'MP_ACCESS_TOKEN is required when PAYMENT_GATEWAY=mercadopago in production',
+      );
+    }
+    if (!input.MP_WEBHOOK_SECRET) {
+      throw new Error(
+        'MP_WEBHOOK_SECRET is required when PAYMENT_GATEWAY=mercadopago in production',
+      );
+    }
+    if (!input.MP_WEBHOOK_URL) {
+      throw new Error(
+        'MP_WEBHOOK_URL is required when PAYMENT_GATEWAY=mercadopago in production',
+      );
+    }
   }
 
   return parsed;
