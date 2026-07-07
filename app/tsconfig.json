@@ -15,7 +15,7 @@
     "declaration": false,
     "declarationMap": false,
     "sourceMap": true,
-    "types": ["react", "expo"],
+    "types": ["react", "expo", "node"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],

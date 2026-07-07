@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { authStore } from '../stores/authStore';
 import { AuthStack } from './AuthStack';
 import { OnboardingStack } from './OnboardingStack';
@@ -17,19 +17,18 @@ function LoadingScreen() {
 /**
  * RootNavigator conditionally renders the correct stack
  * based on authStore state:
- *  - No token         → AuthStack
- *  - Token + no user  → fetch user (loading spinner)
- *  - Token + no role profile → OnboardingStack
- *  - CLIENT           → ClientStack
- *  - OPERATOR         → OperatorStack
+ *  - No token              → AuthStack
+ *  - Token + no user       → loading
+ *  - Token + user + no profile → OnboardingStack
+ *  - CLIENT (profile ready) → ClientStack
+ *  - OPERATOR (profile ready) → OperatorStack
  */
 export function RootNavigator() {
   const token = authStore((s) => s.token);
   const user = authStore((s) => s.user);
-  const loading = authStore((s) => s.hydrated && !s.user && s.token != null);
+  const profileReady = authStore((s) => s.profileReady);
+  const loading = authStore((s) => s.hydrated && s.token != null && !s.user);
 
-  // Hydrating but no user yet — show a brief loading.
-  // After T9 login sets user, this transitions.
   if (!token) {
     return <AuthStack />;
   }
@@ -39,32 +38,21 @@ export function RootNavigator() {
   }
 
   if (!user) {
-    // Token exists but no user — redirect to auth to re-login
     return <AuthStack />;
   }
 
-  const role = user.role;
-
-  // Check if profile exists for this role
-  const needsOnboarding =
-    role === 'OPERATOR' || role === 'CLIENT';
-
-  // For Demo simplicity: after T10 onboarding screens, the me endpoint
-  // will return profiles. Here we check a simplified condition.
-  if (needsOnboarding && role === 'OPERATOR') {
-    // Will be redirected by OnboardingStack check after getMe fetch
+  if (!profileReady) {
     return <OnboardingStack />;
   }
 
-  if (role === 'CLIENT') {
+  if (user.role === 'CLIENT') {
     return <ClientStack />;
   }
 
-  if (role === 'OPERATOR') {
+  if (user.role === 'OPERATOR') {
     return <OperatorStack />;
   }
 
-  // Fallback
   return <AuthStack />;
 }
 

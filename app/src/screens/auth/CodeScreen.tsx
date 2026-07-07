@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { otpVerify } from '../../lib/apiAuth';
 import { getMe } from '../../lib/apiMe';
 import { authStore } from '../../stores/authStore';
+import { UserRole } from '@destrabe/shared';
 import { uiStore } from '../../stores/uiStore';
 import type { AuthStackParamList } from '../../navigation/AuthStack';
 
@@ -40,7 +41,7 @@ export default function CodeScreen({ route }: Props) {
         const user = {
           id: res.user.id,
           phone: res.user.phoneNumber ?? phoneNumber,
-          role: res.user.role as 'CLIENT' | 'OPERATOR' | 'ADMIN',
+          role: res.user.role as UserRole,
         };
 
         // Persist token + user in authStore
