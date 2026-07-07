@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  View,
   Text,
   TextInput,
   TouchableOpacity,
@@ -56,8 +55,7 @@ export default function CodeScreen({ route }: Props) {
         }
       });
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : 'Código inválido';
+      const msg = err instanceof Error ? err.message : 'Código inválido';
       Alert.alert('Error', msg);
       setCode('');
     }

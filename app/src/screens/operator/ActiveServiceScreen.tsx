@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { getService, updateServiceStatus } from '../../lib/apiServices';
+import { updateServiceStatus } from '../../lib/apiServices';
 import type { ServiceItem } from '../../stores/servicesStore';
 
 export default function ActiveServiceScreen() {
@@ -47,16 +47,17 @@ export default function ActiveServiceScreen() {
       Alert.alert('Servicio completado', 'Gracias por tu trabajo.', [
         { text: 'OK', onPress: () => fetchActive() },
       ]);
-    } catch (err: any) {
-      if (err?.response?.status === 409) {
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
+      if (error?.response?.status === 409) {
         Alert.alert(
           'Pago pendiente',
           'El pago debe confirmarse antes de completar el servicio.',
         );
       } else {
         const msg =
-          err?.response?.data?.message ??
-          err?.message ??
+          error?.response?.data?.message ??
+          error?.message ??
           'Error al completar servicio';
         Alert.alert('Error', msg);
       }
@@ -152,7 +153,12 @@ const styles = StyleSheet.create({
   row: {
     marginBottom: 14,
   },
-  label: { fontSize: 13, color: '#888', marginBottom: 2, textTransform: 'uppercase' },
+  label: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
   value: { fontSize: 16, color: '#333' },
   statusBadge: {
     backgroundColor: '#4caf50',
@@ -171,5 +177,10 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   completeBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  emptyText: { fontSize: 16, color: '#999', textAlign: 'center', paddingHorizontal: 24 },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
 });

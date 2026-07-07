@@ -28,9 +28,10 @@ export default function AvailableToggleScreen() {
         available: value,
       });
       setAvailable(value);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       const msg =
-        err?.response?.data?.message ?? err?.message ?? 'Error al actualizar';
+        error?.response?.data?.message ?? error?.message ?? 'Error al actualizar';
       Alert.alert('Error', msg);
     } finally {
       setToggling(false);
@@ -84,7 +85,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   inner: { flex: 1, paddingHorizontal: 24, paddingTop: 24 },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
-  description: { fontSize: 15, color: '#666', lineHeight: 22, marginBottom: 32 },
+  description: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',

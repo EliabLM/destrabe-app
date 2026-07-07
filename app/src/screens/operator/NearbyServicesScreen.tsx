@@ -66,10 +66,11 @@ export default function NearbyServicesScreen() {
       setEstimatedMinutes('');
       setNote('');
       Alert.alert('Cotización enviada', 'El cliente podrá ver tu propuesta.');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       const msg =
-        err?.response?.data?.message ??
-        err?.message ??
+        error?.response?.data?.message ??
+        error?.message ??
         'Error al crear cotización';
       Alert.alert('Error', msg);
     } finally {
@@ -175,10 +176,7 @@ export default function NearbyServicesScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.submitBtn,
-                  !amount && styles.submitBtnDisabled,
-                ]}
+                style={[styles.submitBtn, !amount && styles.submitBtnDisabled]}
                 onPress={handleCreateQuote}
                 disabled={!amount || quoteLoading}
               >
@@ -227,7 +225,12 @@ const styles = StyleSheet.create({
   cardStatus: { fontSize: 12, color: '#f57c00', fontWeight: '600' },
   cardDesc: { fontSize: 14, color: '#666', marginBottom: 4 },
   cardCoords: { fontSize: 12, color: '#999', fontFamily: 'monospace' },
-  emptyText: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 40 },
+  emptyText: {
+    fontSize: 15,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 40,
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',

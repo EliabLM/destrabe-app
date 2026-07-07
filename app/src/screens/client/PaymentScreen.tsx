@@ -118,10 +118,11 @@ export default function PaymentScreen() {
 
       // Browser closed — start polling
       pollPayment();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       const msg =
-        err?.response?.data?.message ??
-        err?.message ??
+        error?.response?.data?.message ??
+        error?.message ??
         'Error al iniciar pago';
       setError(msg);
       setState('idle');
@@ -150,7 +151,9 @@ export default function PaymentScreen() {
           </>
         )}
 
-        {(state === 'initiating' || state === 'browser' || state === 'polling') && (
+        {(state === 'initiating' ||
+          state === 'browser' ||
+          state === 'polling') && (
           <View style={styles.statusBox}>
             <ActivityIndicator size="large" color="#1a73e8" />
             <Text style={styles.statusText}>{STATUS_MSGS[state]}</Text>
@@ -160,9 +163,7 @@ export default function PaymentScreen() {
         {state === 'confirmed' && (
           <View style={styles.statusBox}>
             <Text style={styles.confirmedIcon}>✅</Text>
-            <Text style={styles.statusText}>
-              {STATUS_MSGS.confirmed}
-            </Text>
+            <Text style={styles.statusText}>{STATUS_MSGS.confirmed}</Text>
             <TouchableOpacity style={styles.button} onPress={handleGoBack}>
               <Text style={styles.buttonText}>Volver</Text>
             </TouchableOpacity>
@@ -197,7 +198,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   inner: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 16 },
-  description: { fontSize: 16, color: '#666', marginBottom: 24, lineHeight: 22 },
+  description: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
   error: { color: '#d32f2f', marginBottom: 12 },
   statusBox: { alignItems: 'center', gap: 16 },
   statusText: { fontSize: 18, color: '#333', textAlign: 'center' },

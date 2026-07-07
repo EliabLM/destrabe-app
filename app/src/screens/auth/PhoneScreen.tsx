@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  View,
   Text,
   TextInput,
   TouchableOpacity,
@@ -33,13 +32,10 @@ export default function PhoneScreen() {
 
     setError(null);
     try {
-      await uiStore.getState().withLoading('otpSend', () =>
-        otpSend(cleaned),
-      );
+      await uiStore.getState().withLoading('otpSend', () => otpSend(cleaned));
       nav.navigate('Code', { phoneNumber: cleaned });
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : 'Error al enviar código';
+      const msg = err instanceof Error ? err.message : 'Error al enviar código';
       Alert.alert('Error', msg);
     }
   };

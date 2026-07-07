@@ -12,10 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import type {
-  ClientStackParamList,
-} from '../../navigation/ClientStack';
-import { getService, updateServiceStatus } from '../../lib/apiServices';
+import type { ClientStackParamList } from '../../navigation/ClientStack';
+import { getService } from '../../lib/apiServices';
 import { listQuotes, acceptQuote } from '../../lib/apiQuotes';
 import type { QuoteItem } from '../../lib/apiQuotes';
 import type { ServiceItem } from '../../stores/servicesStore';
@@ -79,15 +77,16 @@ export default function ServiceDetailScreen() {
       Alert.alert('¡Cotización aceptada!', 'El operador está en camino.', [
         { text: 'OK', onPress: () => nav.goBack() },
       ]);
-    } catch (err: any) {
-      if (err?.response?.status === 409) {
+    } catch (err: unknown) {
+      const error = err as { response?: { status?: number }; message?: string };
+      if (error?.response?.status === 409) {
         Alert.alert(
           'Ya no disponible',
           'El servicio ya no está disponible para aceptar cotizaciones.',
           [{ text: 'OK', onPress: () => fetchServiceAndQuotes() }],
         );
       } else {
-        Alert.alert('Error', err?.message ?? 'Error al aceptar cotización');
+        Alert.alert('Error', error?.message ?? 'Error al aceptar cotización');
       }
     } finally {
       setAcceptingId(null);
@@ -176,9 +175,7 @@ export default function ServiceDetailScreen() {
                   : ''}
               </Text>
             )}
-            {item.note && (
-              <Text style={styles.quoteNote}>{item.note}</Text>
-            )}
+            {item.note && <Text style={styles.quoteNote}>{item.note}</Text>}
             {service.status === 'QUOTED' && (
               <TouchableOpacity
                 style={styles.acceptBtn}
@@ -254,7 +251,12 @@ const styles = StyleSheet.create({
   quoteAmount: { fontSize: 22, fontWeight: 'bold', color: '#1a73e8' },
   quoteTime: { fontSize: 14, color: '#666' },
   quoteOperator: { fontSize: 13, color: '#555', marginBottom: 4 },
-  quoteNote: { fontSize: 13, color: '#888', fontStyle: 'italic', marginBottom: 8 },
+  quoteNote: {
+    fontSize: 13,
+    color: '#888',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
   acceptBtn: {
     backgroundColor: '#4caf50',
     padding: 10,
@@ -271,5 +273,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pollingText: { fontSize: 14, color: '#666' },
-  emptyText: { fontSize: 15, color: '#999', textAlign: 'center', marginTop: 24 },
+  emptyText: {
+    fontSize: 15,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 24,
+  },
 });

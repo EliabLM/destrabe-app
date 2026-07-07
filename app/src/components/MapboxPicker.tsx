@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator } from 'react-native';
 import MapboxGL from '../lib/useMapbox';
 
@@ -32,9 +32,7 @@ export default function MapboxPicker({
   ];
 
   const handlePress = async (feature: GeoJSON.Feature) => {
-    const coords = (
-      feature.geometry as GeoJSON.Point
-    )?.coordinates;
+    const coords = (feature.geometry as GeoJSON.Point)?.coordinates;
     if (coords) {
       const [lng, lat] = coords;
       onPick(lat, lng);

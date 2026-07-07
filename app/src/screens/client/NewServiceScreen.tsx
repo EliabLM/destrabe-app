@@ -52,9 +52,15 @@ export default function NewServiceScreen() {
         photoUrl: photoUrl.trim() || undefined,
       });
       nav.goBack();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       const msg =
-        err?.response?.data?.message ?? err?.message ?? 'Error al crear servicio';
+        error?.response?.data?.message ??
+        error?.message ??
+        'Error al crear servicio';
       Alert.alert('Error', msg);
     } finally {
       setSubmitting(false);

@@ -42,10 +42,11 @@ export default function OperatorProfileScreen() {
       });
       // Profile created → RootStack re-renders to OperatorStack
       authStore.setState({ profileReady: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       const msg =
-        err?.response?.data?.message ??
-        err?.message ??
+        error?.response?.data?.message ??
+        error?.message ??
         'Error al crear perfil';
       Alert.alert('Error', msg);
     } finally {

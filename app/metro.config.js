@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
@@ -19,3 +20,4 @@ config.resolver.nodeModulesPaths = [
 config.resolver.disableHierarchicalLookup = true;
 
 module.exports = config;
+/* eslint-enable @typescript-eslint/no-require-imports */
