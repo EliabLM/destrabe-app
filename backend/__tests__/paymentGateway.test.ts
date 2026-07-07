@@ -6,6 +6,7 @@ import {
   type WebhookHeaders,
 } from '../src/services/paymentGateway';
 import { getPaymentGateway } from '../src/services/paymentFactory';
+import { MercadoPagoGateway } from '../src/services/mercadopagoGateway';
 
 /** Webhook token coincidente con `TEST_DEFAULTS.PAYMENT_WEBHOOK_TOKEN` en env.ts */
 const VALID_TOKEN = 'test-webhook-token';
@@ -106,6 +107,11 @@ describe('getPaymentGateway factory (REQ-005)', () => {
     expect(() => getPaymentGateway('unknown')).toThrow(
       'Unknown payment gateway',
     );
+  });
+
+  it('returns MercadoPagoGateway when gateway is mercadopago', () => {
+    const gateway = getPaymentGateway('mercadopago');
+    expect(gateway).toBeInstanceOf(MercadoPagoGateway);
   });
 });
 
