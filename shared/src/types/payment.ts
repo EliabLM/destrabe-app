@@ -4,3 +4,5 @@ export enum PaymentStatus {
   FAILED = 'FAILED',
   REFUNDED = 'REFUNDED',
 }
+
+export type WebhookEventStatus = 'CONFIRMED' | 'FAILED';

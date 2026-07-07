@@ -42,20 +42,20 @@ Approach C (gateway + stub). `StubPaymentGateway` devuelve `initPoint: 'https://
 
 ## Affected Areas
 
-| Área | Impacto |
-|------|---------|
-| `routes/payments.routes.ts`, `services/{paymentGateway,commission}.ts` | New |
-| `routes/index.ts`, `routes/services.routes.ts`, `lib/env.ts`, `shared/.../payment.*` | Modified |
-| `__tests__/` (unit + db smoke) | New |
-| `schema.prisma`, `serviceMachine.ts`, `quotes.routes.ts`, `package.json` | No change |
+| Área                                                                                 | Impacto   |
+| ------------------------------------------------------------------------------------ | --------- |
+| `routes/payments.routes.ts`, `services/{paymentGateway,commission}.ts`               | New       |
+| `routes/index.ts`, `routes/services.routes.ts`, `lib/env.ts`, `shared/.../payment.*` | Modified  |
+| `__tests__/` (unit + db smoke)                                                       | New       |
+| `schema.prisma`, `serviceMachine.ts`, `quotes.routes.ts`, `package.json`             | No change |
 
 ## Risks
 
-| Riesgo | Prob | Mitigación |
-|--------|------|------------|
-| Interfaz `PaymentGateway` insuficiente para MP | Med | Revisar API Preference MP en design; `metadata?` extensible |
-| Webhook stub expuesto en prod | Med | `requireAuth` salvo `PAYMENT_GATEWAY=stub` en dev |
-| Doble webhook recalcula | Bajo | Idempotencia: si `CONFIRMED`, 200 sin recalcular |
+| Riesgo                                         | Prob | Mitigación                                                  |
+| ---------------------------------------------- | ---- | ----------------------------------------------------------- |
+| Interfaz `PaymentGateway` insuficiente para MP | Med  | Revisar API Preference MP en design; `metadata?` extensible |
+| Webhook stub expuesto en prod                  | Med  | `requireAuth` salvo `PAYMENT_GATEWAY=stub` en dev           |
+| Doble webhook recalcula                        | Bajo | Idempotencia: si `CONFIRMED`, 200 sin recalcular            |
 
 ## Rollback Plan
 

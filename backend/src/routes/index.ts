@@ -3,6 +3,7 @@ import { healthRouter } from './health.routes';
 import { authHandler } from '../lib/auth';
 import { servicesRouter } from './services.routes';
 import { serviceQuotesRouter, quotesAcceptRouter } from './quotes.routes';
+import { paymentsRouter } from './payments.routes';
 
 export const router = Router();
 
@@ -21,3 +22,8 @@ router.use('/services', servicesRouter);
 // quotesAcceptRouter bajo /quotes → /:id/accept (POST).
 router.use('/services', serviceQuotesRouter);
 router.use('/quotes', quotesAcceptRouter);
+
+// Payments: monta pagos bajo /payments (cambio-006 / T6).
+// POST /:id/init — CLIENT dueño inicia pago
+// POST /webhook  — público con X-Webhook-Token
+router.use('/payments', paymentsRouter);

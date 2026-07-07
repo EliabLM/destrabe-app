@@ -117,11 +117,11 @@ Etapa `apply`: ejecutar T1→T8 con TDD. **Orchestrator:** pedir confirmación a
 
 ## Progreso apply
 
-- [ ] T1 — Shared schemas + tipos
-- [ ] T2 — Env vars + tests
-- [ ] T3 — calculateCommission pura
-- [ ] T4 — PaymentGateway + Stub + factory
-- [ ] T5 — payments.routes init + webhook
-- [ ] T6 — Montar paymentsRouter
-- [ ] T7 — Guard 409 PAYMENT_PENDING
-- [ ] T8 — Db smoke payment lifecycle
+- [x] T1 — Shared schemas + tipos
+- [x] T2 — Env vars + tests
+- [x] T3 — calculateCommission pura
+- [x] T4 — PaymentGateway + Stub + factory
+- [x] T5 — payments.routes init + webhook
+- [x] T6 — Montar paymentsRouter
+- [x] T7 — Guard 409 PAYMENT_PENDING
+- [x] T8 — Db smoke payment lifecycle

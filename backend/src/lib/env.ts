@@ -13,6 +13,7 @@ const TEST_DEFAULTS = {
   BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret-32chars',
   BETTER_AUTH_URL: 'http://localhost:3000',
   REDIS_URL: 'redis://localhost:6379',
+  PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
 } as const;
 
 const envSchema = z.object({
@@ -31,6 +32,9 @@ const envSchema = z.object({
   PLIVO_AUTH_ID: z.string().optional(),
   PLIVO_AUTH_TOKEN: z.string().optional(),
   PLIVO_PHONE_NUMBER: z.string().optional(),
+  PAYMENT_GATEWAY: z.enum(['stub', 'mercadopago']).default('stub'),
+  PAYMENT_COMMISSION_RATE: z.coerce.number().int().min(0).max(100).default(0),
+  PAYMENT_WEBHOOK_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -48,6 +52,8 @@ export function parseEnv(
           BETTER_AUTH_URL:
             input.BETTER_AUTH_URL ?? TEST_DEFAULTS.BETTER_AUTH_URL,
           REDIS_URL: input.REDIS_URL ?? TEST_DEFAULTS.REDIS_URL,
+          PAYMENT_WEBHOOK_TOKEN:
+            input.PAYMENT_WEBHOOK_TOKEN ?? TEST_DEFAULTS.PAYMENT_WEBHOOK_TOKEN,
         }
       : input;
   const parsed = envSchema.parse(withTestDefaults);
@@ -58,6 +64,15 @@ export function parseEnv(
       'REDIS_URL is required in ' +
         nodeEnv +
         ' environment. Set REDIS_URL in your .env file.',
+    );
+  }
+
+  // PAYMENT_WEBHOOK_TOKEN is required in non-test environments
+  if (nodeEnv !== 'test' && !input.PAYMENT_WEBHOOK_TOKEN) {
+    throw new Error(
+      'PAYMENT_WEBHOOK_TOKEN is required in ' +
+        nodeEnv +
+        ' environment. Set PAYMENT_WEBHOOK_TOKEN in your .env file.',
     );
   }
 
