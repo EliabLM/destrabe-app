@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { UserRole } from '@destrabe/shared';
-import { webhookEventSchema } from '@destrabe/shared';
 import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import type { ValidatedRequest } from '../middleware/validate';
@@ -10,6 +9,8 @@ import { calculateCommission } from '../services/commission';
 import { getPaymentGateway } from '../services/paymentFactory';
 import {
   AlreadyProcessedError,
+  PaymentPendingError,
+  MercadoPagoError,
   type WebhookHeaders,
 } from '../services/paymentGateway';
 
@@ -91,19 +92,24 @@ paymentsRouter.post(
   },
 );
 
-// ─── POST /webhook — Webhook de confirmación (REQ-002) ───────────────────────
+// ─── POST /webhook — Webhook de confirmación (REQ-002, T7) ───────────────────
 
 paymentsRouter.post(
   '/webhook',
-  validate(webhookEventSchema, 'body'),
   async (req, res, next) => {
     try {
-      // T3: Delegar verificación + parseo al gateway
+      // T7: Delegar verificación + parseo al gateway (sin validate middleware)
       const gateway = getPaymentGateway();
       const result = await gateway.processWebhook(
         req.body,
         req.headers as WebhookHeaders,
       );
+
+      if (!result.paymentId) {
+        return res
+          .status(400)
+          .json({ error: 'Validation error', code: 'VALIDATION_ERROR' });
+      }
 
       const payment = await prisma.payment.findUnique({
         where: { id: result.paymentId },
@@ -140,7 +146,23 @@ paymentsRouter.post(
       });
 
       res.json({ status: updated.status });
-    } catch (err) {
+    } catch (err: any) {
+      // T7: Mapear errores de dominio a HTTP
+      if (err instanceof AlreadyProcessedError || err instanceof PaymentPendingError) {
+        return res.status(409).json({ error: err.message, code: err.code });
+      }
+      if (err instanceof MercadoPagoError) {
+        return res.status(502).json({ error: err.message, code: err.code });
+      }
+      if (err.status === 401 || err.code === 'UNAUTHORIZED') {
+        return res.status(401).json({ error: err.message, code: 'UNAUTHORIZED' });
+      }
+      if (err.status === 404 || err.code === 'NOT_FOUND') {
+        return res.status(404).json({ error: err.message, code: 'NOT_FOUND' });
+      }
+      if (err.status === 400 || err.code === 'VALIDATION_ERROR') {
+        return res.status(400).json({ error: err.message, code: 'VALIDATION_ERROR' });
+      }
       next(err);
     }
   },

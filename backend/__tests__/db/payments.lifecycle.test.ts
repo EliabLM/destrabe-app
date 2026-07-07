@@ -299,6 +299,7 @@ describe('POST /payments/webhook (REQ-002/004)', () => {
       .set('x-webhook-token', 'test-webhook-token')
       .send({ status: 'CONFIRMED' }); // falta paymentId
 
+    // T7: Route valida que gateway devolvió paymentId antes del lookup
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('VALIDATION_ERROR');
   });
