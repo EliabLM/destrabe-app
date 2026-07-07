@@ -68,8 +68,7 @@ export function parseEnv(
   // REQ-MP-ENV: MP_SANDBOX default true in non-production
   const withSandboxDefault = { ...withTestDefaults };
   if (withSandboxDefault.MP_SANDBOX === undefined) {
-    withSandboxDefault.MP_SANDBOX =
-      nodeEnv !== 'production' ? 'true' : 'false';
+    withSandboxDefault.MP_SANDBOX = nodeEnv !== 'production' ? 'true' : 'false';
   }
   const parsed = envSchema.parse(withSandboxDefault);
 

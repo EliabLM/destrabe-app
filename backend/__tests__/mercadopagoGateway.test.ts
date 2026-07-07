@@ -25,13 +25,16 @@ vi.mock('mercadopago', () => ({
 
 // ─── Prisma mock ─────────────────────────────────────────────────────────────
 
-function createMockPrisma() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MockPrisma = any;
+
+function createMockPrisma(): MockPrisma {
   return {
     payment: {
       findUnique: vi.fn(),
       update: vi.fn(),
     },
-  } as any;
+  };
 }
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -51,7 +54,9 @@ const validHeaders = {
   'x-request-id': 'req-789',
 };
 
-function createGateway(prisma: ReturnType<typeof createMockPrisma> = createMockPrisma()) {
+function createGateway(
+  prisma: ReturnType<typeof createMockPrisma> = createMockPrisma(),
+) {
   return new MercadoPagoGateway(prisma, CONFIG);
 }
 
@@ -193,16 +198,12 @@ describe('MercadoPagoGateway (T5)', () => {
       prisma.payment.findUnique.mockResolvedValueOnce(null);
 
       const gateway = createGateway(prisma);
-      try {
-        await gateway.processWebhook(
-          { data: { id: 'mp-unknown' } },
-          validHeaders,
-        );
-        expect.unreachable('Should have thrown');
-      } catch (err: any) {
-        expect(err.status).toBe(404);
-        expect(err.message).toContain('mp-unknown');
-      }
+      await expect(
+        gateway.processWebhook({ data: { id: 'mp-unknown' } }, validHeaders),
+      ).rejects.toMatchObject({
+        status: 404,
+        message: expect.stringContaining('mp-unknown'),
+      });
     });
   });
 
@@ -343,13 +344,9 @@ describe('MercadoPagoGateway (T5)', () => {
       });
 
       const gateway = createGateway();
-      try {
-        await gateway.processWebhook({}, validHeaders);
-        expect.unreachable('Should have thrown');
-      } catch (err: any) {
-        expect(err.status).toBe(400);
-        expect(err.code).toBe('VALIDATION_ERROR');
-      }
+      await expect(
+        gateway.processWebhook({}, validHeaders),
+      ).rejects.toMatchObject({ status: 400, code: 'VALIDATION_ERROR' });
     });
   });
 });

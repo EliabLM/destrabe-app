@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   StubPaymentGateway,
   AlreadyProcessedError,
@@ -82,16 +82,12 @@ describe('StubPaymentGateway (REQ-005)', () => {
   });
 
   it('processWebhook thrown error has status=401 and code=UNAUTHORIZED', async () => {
-    try {
-      await gateway.processWebhook(
+    await expect(
+      gateway.processWebhook(
         { paymentId: 'pay-123', status: 'CONFIRMED' },
         { 'x-webhook-token': 'wrong-token' },
-      );
-      expect.unreachable('Should have thrown');
-    } catch (err: any) {
-      expect(err.status).toBe(401);
-      expect(err.code).toBe('UNAUTHORIZED');
-    }
+      ),
+    ).rejects.toMatchObject({ status: 401, code: 'UNAUTHORIZED' });
   });
 });
 

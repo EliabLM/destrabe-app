@@ -9,7 +9,11 @@
  * Tests usan `vi.mock('mercadopago')` (D7).
  */
 
-import { MercadoPagoConfig, Preference, WebhookSignatureValidator } from 'mercadopago';
+import {
+  MercadoPagoConfig,
+  Preference,
+  WebhookSignatureValidator,
+} from 'mercadopago';
 import type { PrismaClient } from '@prisma/client';
 import type { PaymentGateway, WebhookHeaders } from './paymentGateway';
 
@@ -90,7 +94,8 @@ export class MercadoPagoGateway implements PaymentGateway {
   }> {
     const body = payload as Record<string, unknown>;
     const dataId =
-      (body?.data as Record<string, unknown> | undefined)?.id ?? (body?.id as string | undefined);
+      (body?.data as Record<string, unknown> | undefined)?.id ??
+      (body?.id as string | undefined);
 
     // 1. Validar HMAC
     const dataIdStr = dataId as string | undefined;
@@ -138,11 +143,19 @@ export class MercadoPagoGateway implements PaymentGateway {
 
     // Estados terminales
     if (mpStatus === 'approved') {
-      return { paymentId: payment.id, status: 'CONFIRMED', gatewayReference: dataIdStr };
+      return {
+        paymentId: payment.id,
+        status: 'CONFIRMED',
+        gatewayReference: dataIdStr,
+      };
     }
 
     if (['rejected', 'cancelled', 'refunded'].includes(mpStatus)) {
-      return { paymentId: payment.id, status: 'FAILED', gatewayReference: dataIdStr };
+      return {
+        paymentId: payment.id,
+        status: 'FAILED',
+        gatewayReference: dataIdStr,
+      };
     }
 
     // Estado desconocido → ignorar por defecto (no terminal)

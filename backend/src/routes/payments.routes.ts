@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { UserRole } from '@destrabe/shared';
 import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
-import { validate } from '../middleware/validate';
 import type { ValidatedRequest } from '../middleware/validate';
 import { prisma } from '../lib/prisma';
 import { env } from '../lib/env';
@@ -94,76 +93,79 @@ paymentsRouter.post(
 
 // ─── POST /webhook — Webhook de confirmación (REQ-002, T7) ───────────────────
 
-paymentsRouter.post(
-  '/webhook',
-  async (req, res, next) => {
-    try {
-      // T7: Delegar verificación + parseo al gateway (sin validate middleware)
-      const gateway = getPaymentGateway();
-      const result = await gateway.processWebhook(
-        req.body,
-        req.headers as WebhookHeaders,
-      );
+paymentsRouter.post('/webhook', async (req, res, next) => {
+  try {
+    // T7: Delegar verificación + parseo al gateway (sin validate middleware)
+    const gateway = getPaymentGateway();
+    const result = await gateway.processWebhook(
+      req.body,
+      req.headers as WebhookHeaders,
+    );
 
-      if (!result.paymentId) {
-        return res
-          .status(400)
-          .json({ error: 'Validation error', code: 'VALIDATION_ERROR' });
-      }
-
-      const payment = await prisma.payment.findUnique({
-        where: { id: result.paymentId },
-      });
-      if (!payment) {
-        return res.status(404).json({ error: 'Not Found', code: 'NOT_FOUND' });
-      }
-
-      // REQ-004: Idempotencia — si terminal, no mutar
-      if (payment.status !== 'PENDING') {
-        return res.json({ status: payment.status });
-      }
-
-      // REQ-MP-NOTIFICATION: no terminal → ignorar sin mutar BD
-      if (result.status === 'ignored') {
-        return res.json({ status: 'ignored' });
-      }
-
-      // REQ-003: Recalcular comisión (defensa si amount mutó)
-      const { commission, operatorAmount } = calculateCommission(
-        payment.amount,
-        env.PAYMENT_COMMISSION_RATE,
-      );
-
-      // REQ-002/004: Transicionar PENDING → CONFIRMED/FAILED
-      const updated = await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: result.status as 'CONFIRMED' | 'FAILED',
-          commission,
-          operatorAmount,
-          mpPaymentId: result.gatewayReference ?? payment.mpPaymentId,
-        },
-      });
-
-      res.json({ status: updated.status });
-    } catch (err: any) {
-      // T7: Mapear errores de dominio a HTTP
-      if (err instanceof AlreadyProcessedError || err instanceof PaymentPendingError) {
-        return res.status(409).json({ error: err.message, code: err.code });
-      }
-      if (err instanceof MercadoPagoError) {
-        return res.status(502).json({ error: err.message, code: err.code });
-      }
-      if (err.status === 401 || err.code === 'UNAUTHORIZED') {
-        return res.status(401).json({ error: err.message, code: 'UNAUTHORIZED' });
-      }
-      if (err.status === 404 || err.code === 'NOT_FOUND') {
-        return res.status(404).json({ error: err.message, code: 'NOT_FOUND' });
-      }
-      if (err.status === 400 || err.code === 'VALIDATION_ERROR') {
-        return res.status(400).json({ error: err.message, code: 'VALIDATION_ERROR' });
-      }
-      next(err);
+    if (!result.paymentId) {
+      return res
+        .status(400)
+        .json({ error: 'Validation error', code: 'VALIDATION_ERROR' });
     }
-  },
-);
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: result.paymentId },
+    });
+    if (!payment) {
+      return res.status(404).json({ error: 'Not Found', code: 'NOT_FOUND' });
+    }
+
+    // REQ-004: Idempotencia — si terminal, no mutar
+    if (payment.status !== 'PENDING') {
+      return res.json({ status: payment.status });
+    }
+
+    // REQ-MP-NOTIFICATION: no terminal → ignorar sin mutar BD
+    if (result.status === 'ignored') {
+      return res.json({ status: 'ignored' });
+    }
+
+    // REQ-003: Recalcular comisión (defensa si amount mutó)
+    const { commission, operatorAmount } = calculateCommission(
+      payment.amount,
+      env.PAYMENT_COMMISSION_RATE,
+    );
+
+    // REQ-002/004: Transicionar PENDING → CONFIRMED/FAILED
+    const updated = await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: result.status as 'CONFIRMED' | 'FAILED',
+        commission,
+        operatorAmount,
+        mpPaymentId: result.gatewayReference ?? payment.mpPaymentId,
+      },
+    });
+
+    res.json({ status: updated.status });
+  } catch (err) {
+    // T7: Mapear errores de dominio a HTTP
+    const e = err as Error & { status?: number; code?: string };
+    if (
+      e instanceof AlreadyProcessedError ||
+      e instanceof PaymentPendingError
+    ) {
+      return res.status(409).json({ error: e.message, code: e.code });
+    }
+    if (e instanceof MercadoPagoError) {
+      return res.status(502).json({ error: e.message, code: e.code });
+    }
+    if (e.status === 401 || e.code === 'UNAUTHORIZED') {
+      return res.status(401).json({ error: e.message, code: 'UNAUTHORIZED' });
+    }
+    if (e.status === 404 || e.code === 'NOT_FOUND') {
+      return res.status(404).json({ error: e.message, code: 'NOT_FOUND' });
+    }
+    if (e.status === 400 || e.code === 'VALIDATION_ERROR') {
+      return res
+        .status(400)
+        .json({ error: e.message, code: 'VALIDATION_ERROR' });
+    }
+    next(err);
+  }
+});

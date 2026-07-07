@@ -16,7 +16,7 @@ El factory (`paymentFactory.ts`) ya tiene el enum de `env.ts` preparado:
 
 ```ts
 // env.ts L35 — ya definido
-PAYMENT_GATEWAY: z.enum(['stub', 'mercadopago']).default('stub')
+PAYMENT_GATEWAY: z.enum(['stub', 'mercadopago']).default('stub');
 ```
 
 Sin embargo, el branch `'mercadopago'` lanza `throw new Error('Unknown payment gateway')` — nunca se implementó. El paquete `mercadopago` **no está instalado** en `backend/package.json`.
@@ -34,33 +34,33 @@ El método `processWebhook()` de la interfaz existe pero **no se usa en runtime*
 
 ### Alineación de la interfaz con MP
 
-| Método de la interfaz | ¿Soporta MP? | Detalle |
-|---|---|---|
-| `initPayment(payment) → { gatewayPaymentId, redirectUrl? }` | ✅ Sí | `Preference.create()` → `preference.id` = gatewayPaymentId, `preference.init_point` (o `sandbox_init_point`) = redirectUrl |
+| Método de la interfaz                                                                             | ¿Soporta MP?          | Detalle                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `initPayment(payment) → { gatewayPaymentId, redirectUrl? }`                                       | ✅ Sí                 | `Preference.create()` → `preference.id` = gatewayPaymentId, `preference.init_point` (o `sandbox_init_point`) = redirectUrl                                                                                                   |
 | `processWebhook(payload: unknown, signature?: string) → { paymentId, status, gatewayReference? }` | ✅ Sí, con adaptación | El stub parsea `payload` como body directo. MP necesita recibir el request completo (headers + body + query params) para verificar HMAC y parsear la notificación IPN. El parámetro `signature?` ya está previsto para HMAC. |
 
 ## Affected Areas
 
-| Archivo | Por qué se afecta | Tipo de cambio |
-|---|---|---|
-| `backend/src/services/paymentGateway.ts` | Agregar clase `MercadoPagoGateway` que implemente `PaymentGateway` | Create (nueva clase en archivo existente) |
-| `backend/src/services/paymentFactory.ts` | Agregar branch `'mercadopago'` → `new MercadoPagoGateway(...)` | Modify (2-3 líneas) |
-| `backend/src/routes/payments.routes.ts` | `POST /webhook` debe delegar verificación+parseo al gateway vía `processWebhook(req)`; mover lógica de token check al `StubPaymentGateway.processWebhook` | Modify (refactor interno, sin cambiar contrato REST) |
-| `backend/src/lib/env.ts` | Agregar `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `MP_SANDBOX`; mantener compatibilidad con `PAYMENT_WEBHOOK_TOKEN` para stub | Modify |
-| `backend/package.json` | Agregar dependencia `mercadopago` | Modify |
-| `backend/__tests__/paymentGateway.test.ts` | Nuevos tests unitarios para `MercadoPagoGateway` (con SDK mockeado) + test de factory para `'mercadopago'` | Modify |
-| `backend/__tests__/db/payments.lifecycle.test.ts` | Sin cambios: el entorno de test usa `NODE_ENV=test` → `PAYMENT_GATEWAY=stub` por default. Los tests de integración MP requieren sandbox credentials y se gatean por env. | No change (o test MP opcional gateado) |
+| Archivo                                           | Por qué se afecta                                                                                                                                                        | Tipo de cambio                                       |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `backend/src/services/paymentGateway.ts`          | Agregar clase `MercadoPagoGateway` que implemente `PaymentGateway`                                                                                                       | Create (nueva clase en archivo existente)            |
+| `backend/src/services/paymentFactory.ts`          | Agregar branch `'mercadopago'` → `new MercadoPagoGateway(...)`                                                                                                           | Modify (2-3 líneas)                                  |
+| `backend/src/routes/payments.routes.ts`           | `POST /webhook` debe delegar verificación+parseo al gateway vía `processWebhook(req)`; mover lógica de token check al `StubPaymentGateway.processWebhook`                | Modify (refactor interno, sin cambiar contrato REST) |
+| `backend/src/lib/env.ts`                          | Agregar `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `MP_SANDBOX`; mantener compatibilidad con `PAYMENT_WEBHOOK_TOKEN` para stub                                              | Modify                                               |
+| `backend/package.json`                            | Agregar dependencia `mercadopago`                                                                                                                                        | Modify                                               |
+| `backend/__tests__/paymentGateway.test.ts`        | Nuevos tests unitarios para `MercadoPagoGateway` (con SDK mockeado) + test de factory para `'mercadopago'`                                                               | Modify                                               |
+| `backend/__tests__/db/payments.lifecycle.test.ts` | Sin cambios: el entorno de test usa `NODE_ENV=test` → `PAYMENT_GATEWAY=stub` por default. Los tests de integración MP requieren sandbox credentials y se gatean por env. | No change (o test MP opcional gateado)               |
 
 ### Áreas NO afectadas (el seam funciona)
 
-| Archivo | Por qué NO se toca |
-|---|---|
-| `POST /:id/init` en `payments.routes.ts` | Ya llama `gateway.initPayment()` — solo cambia la implementación detrás de la interfaz |
-| `POST /webhook` contrato REST | 200/400/401/404/409 no cambian — solo cambia la implementación interna |
-| `backend/src/services/commission.ts` | Cálculo puro interno a destrabe, no depende del gateway |
-| `backend/src/routes/services.routes.ts` | Guard 409 `PAYMENT_PENDING` verifica `Payment.status === 'CONFIRMED'` en BD, no depende del gateway |
-| `shared/src/schemas/payment.schema.ts` | Schemas de respuesta (`initPaymentResponseSchema`, `webhookEventSchema`) no cambian |
-| `backend/prisma/schema.prisma` | Modelo `Payment` ya tiene `mpPaymentId @unique` desde cambio-002 |
+| Archivo                                  | Por qué NO se toca                                                                                  |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `POST /:id/init` en `payments.routes.ts` | Ya llama `gateway.initPayment()` — solo cambia la implementación detrás de la interfaz              |
+| `POST /webhook` contrato REST            | 200/400/401/404/409 no cambian — solo cambia la implementación interna                              |
+| `backend/src/services/commission.ts`     | Cálculo puro interno a destrabe, no depende del gateway                                             |
+| `backend/src/routes/services.routes.ts`  | Guard 409 `PAYMENT_PENDING` verifica `Payment.status === 'CONFIRMED'` en BD, no depende del gateway |
+| `shared/src/schemas/payment.schema.ts`   | Schemas de respuesta (`initPaymentResponseSchema`, `webhookEventSchema`) no cambian                 |
+| `backend/prisma/schema.prisma`           | Modelo `Payment` ya tiene `mpPaymentId @unique` desde cambio-002                                    |
 
 ## Preguntas de la exploración respondidas
 
@@ -69,23 +69,32 @@ El método `processWebhook()` de la interfaz existe pero **no se usa en runtime*
 El SDK oficial (`mercadopago` npm, Context7 ID `/mercadopago/sdk-nodejs`) expone:
 
 **Crear Preference (Checkout Pro):**
+
 ```ts
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 const client = new MercadoPagoConfig({ accessToken: '<token>' });
 const pref = new Preference(client);
 const result = await pref.create({
   body: {
-    items: [{ id: payment.id, title: 'Servicio Destrabe', quantity: 1, unit_price: payment.amount }],
+    items: [
+      {
+        id: payment.id,
+        title: 'Servicio Destrabe',
+        quantity: 1,
+        unit_price: payment.amount,
+      },
+    ],
     back_urls: { success: '...', failure: '...', pending: '...' },
     notification_url: 'https://api.destrabe.app/payments/webhook',
     external_reference: payment.id,
-  }
+  },
 });
 // result.id → gatewayPaymentId
 // result.init_point → redirectUrl (producción) o result.sandbox_init_point → (sandbox)
 ```
 
 **Verificar webhook (HMAC):**
+
 ```ts
 import { WebhookSignatureValidator } from 'mercadopago';
 WebhookSignatureValidator.validate({
@@ -98,12 +107,14 @@ WebhookSignatureValidator.validate({
 ```
 
 **Procesar notificación IPN:**
+
 ```ts
 mercadopago.ipn.manage(request) → { body: { id, status, external_reference, ... }, topic }
 // Alternativa: GET /v1/payments/{id}?access_token=... para obtener detalles
 ```
 
 **Mapeo de estados MP → nuestro dominio:**
+
 - `approved` → `CONFIRMED`
 - `rejected`, `cancelled`, `refunded` → `FAILED`
 - `pending`, `in_process`, `in_mediation` → ignorar (no terminal)
@@ -130,6 +141,7 @@ processWebhook(payload: unknown, signature?: string): Promise<{
 ### 3. ¿Dónde ocurre el cálculo de comisión?
 
 El cálculo es **interno a destrabe** y no depende del gateway. `calculateCommission(amount, rate)` se invoca en:
+
 - `POST /:id/init` L57-60 → antes de llamar a `gateway.initPayment()`
 - `POST /webhook` L126-129 → antes de persistir la transición
 
@@ -137,15 +149,16 @@ MP no interviene en la comisión. La comisión se persiste en `Payment.commissio
 
 ### 4. Variables de entorno necesarias
 
-| Variable | Requerida en | Default test | Descripción |
-|---|---|---|---|
-| `PAYMENT_GATEWAY` | Todas | `'stub'` | Ya existe, valor `'mercadopago'` para MP |
-| `MP_ACCESS_TOKEN` | dev + prod cuando `PAYMENT_GATEWAY=mercadopago` | — | Access token de MP (producción o sandbox) |
-| `MP_WEBHOOK_SECRET` | prod cuando `PAYMENT_GATEWAY=mercadopago` | `''` (test) | Secreto HMAC para verificar firma de webhooks |
-| `MP_SANDBOX` | dev (opcional) | `true` | Habilita modo sandbox (`true`/`false`) |
-| `PAYMENT_WEBHOOK_TOKEN` | dev + prod cuando `PAYMENT_GATEWAY=stub` | `'test-webhook-token'` | Ya existe; no se usa con MP |
+| Variable                | Requerida en                                    | Default test           | Descripción                                   |
+| ----------------------- | ----------------------------------------------- | ---------------------- | --------------------------------------------- |
+| `PAYMENT_GATEWAY`       | Todas                                           | `'stub'`               | Ya existe, valor `'mercadopago'` para MP      |
+| `MP_ACCESS_TOKEN`       | dev + prod cuando `PAYMENT_GATEWAY=mercadopago` | —                      | Access token de MP (producción o sandbox)     |
+| `MP_WEBHOOK_SECRET`     | prod cuando `PAYMENT_GATEWAY=mercadopago`       | `''` (test)            | Secreto HMAC para verificar firma de webhooks |
+| `MP_SANDBOX`            | dev (opcional)                                  | `true`                 | Habilita modo sandbox (`true`/`false`)        |
+| `PAYMENT_WEBHOOK_TOKEN` | dev + prod cuando `PAYMENT_GATEWAY=stub`        | `'test-webhook-token'` | Ya existe; no se usa con MP                   |
 
 **Estrategia fail-fast**: si `PAYMENT_GATEWAY=mercadopago` y `NODE_ENV !== 'test'`:
+
 - `MP_ACCESS_TOKEN` requerido → error claro si falta
 - `MP_WEBHOOK_SECRET` requerido → error claro si falta
 
@@ -153,13 +166,13 @@ En `NODE_ENV=test`, el gateway por defecto es `'stub'`, así que las variables d
 
 ### 5. Estrategia de testing
 
-| Capa | Qué | Cómo |
-|---|---|---|
-| Unit — `MercadoPagoGateway.initPayment` | Crea Preference con items, external_reference, notification_url correctos | `vi.mock('mercadopago')` — mockea `Preference.create` |
-| Unit — `MercadoPagoGateway.processWebhook` | Verifica HMAC, parsea IPN, mapea estados MP→dominio, reverse-lookup por mpPaymentId | `vi.mock('mercadopago')` — mockea `WebhookSignatureValidator` e `ipn.manage` |
-| Unit — Factory | `getPaymentGateway('mercadopago')` retorna `MercadoPagoGateway` | Test simple sin mocks |
-| DB smoke | Flujo end-to-end `init→webhook→COMPLETED` con stub | **Sin cambios** — `payments.lifecycle.test.ts` existente; `NODE_ENV=test` → stub |
-| Integration MP (opcional) | Flujo real contra sandbox de MP | Nuevo archivo `payments.mercadopago.test.ts`, gateado por `MP_ACCESS_TOKEN` en env; solo se ejecuta en CI con credenciales de sandbox |
+| Capa                                       | Qué                                                                                 | Cómo                                                                                                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit — `MercadoPagoGateway.initPayment`    | Crea Preference con items, external_reference, notification_url correctos           | `vi.mock('mercadopago')` — mockea `Preference.create`                                                                                 |
+| Unit — `MercadoPagoGateway.processWebhook` | Verifica HMAC, parsea IPN, mapea estados MP→dominio, reverse-lookup por mpPaymentId | `vi.mock('mercadopago')` — mockea `WebhookSignatureValidator` e `ipn.manage`                                                          |
+| Unit — Factory                             | `getPaymentGateway('mercadopago')` retorna `MercadoPagoGateway`                     | Test simple sin mocks                                                                                                                 |
+| DB smoke                                   | Flujo end-to-end `init→webhook→COMPLETED` con stub                                  | **Sin cambios** — `payments.lifecycle.test.ts` existente; `NODE_ENV=test` → stub                                                      |
+| Integration MP (opcional)                  | Flujo real contra sandbox de MP                                                     | Nuevo archivo `payments.mercadopago.test.ts`, gateado por `MP_ACCESS_TOKEN` en env; solo se ejecuta en CI con credenciales de sandbox |
 
 ## Approaches
 
@@ -237,6 +250,7 @@ MercadoPagoGateway implements PaymentGateway
 ```
 
 El `MercadoPagoGateway` recibe `PrismaClient` en su constructor para el reverse-lookup `mpPaymentId → payment.id`. Esto es aceptable porque:
+
 - La interfaz no expone Prisma (el tipo es `PaymentGateway`)
 - Solo la implementación concreta de MP necesita la BD
 - Patrón común en gateways de pago reales (Stripe SDK también requiere acceso a BD para webhooks)
