@@ -404,14 +404,8 @@ describe('PATCH /services/:id/status — payment guard (service-lifecycle REQ-00
   });
 
   it('CLIENT cancela PENDING sin payment guard (no afectado)', async () => {
-    const { client, serviceId } = await createAcceptedService(
-      CLIENT_PHONE,
-      OPERATOR_PHONE,
-    );
     // CLIENT cannot cancel ACTIVE, but we can test a regular cancel scenario
     // Create a fresh PENDING service and cancel it
-    // Actually, the service is ACTIVE after accept, so CLIENT can't cancel it
-    // Let's test PENDING→CANCELLED by CLIENT via a fresh service
     const clientAgent = await authenticateAs(CLIENT_PHONE, UserRole.CLIENT);
     const createRes = await clientAgent.post('/services').send({
       type: ServiceType.BREAKDOWN,
