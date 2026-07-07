@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   StubPaymentGateway,
   AlreadyProcessedError,
+  MercadoPagoError,
   type WebhookHeaders,
 } from '../src/services/paymentGateway';
 import { getPaymentGateway } from '../src/services/paymentFactory';
@@ -122,5 +123,28 @@ describe('AlreadyProcessedError', () => {
   it('uses default message when not provided', () => {
     const err = new AlreadyProcessedError();
     expect(err.message).toBe('Payment already processed');
+  });
+});
+
+// ─── MercadoPagoError (T4) ──────────────────────────────────────────────────
+
+describe('MercadoPagoError (T4)', () => {
+  it('has status=502, code="MERCADOPAGO_ERROR", and message', () => {
+    const err = new MercadoPagoError('MP API failure');
+    expect(err).toBeInstanceOf(Error);
+    expect(err.status).toBe(502);
+    expect(err.code).toBe('MERCADOPAGO_ERROR');
+    expect(err.message).toBe('MP API failure');
+  });
+
+  it('uses default message when not provided', () => {
+    const err = new MercadoPagoError();
+    expect(err.message).toBe('MercadoPago integration error');
+  });
+
+  it('accepts cause option', () => {
+    const cause = new Error('underlying network error');
+    const err = new MercadoPagoError('MP failure', { cause });
+    expect(err.cause).toBe(cause);
   });
 });

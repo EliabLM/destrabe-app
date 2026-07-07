@@ -102,3 +102,20 @@ export class PaymentPendingError extends Error {
     this.name = 'PaymentPendingError';
   }
 }
+
+/**
+ * Error 502 para errores inesperados del SDK de MercadoPago o de red.
+ * Sigue el patrón de errores de dominio (status + code).
+ */
+export class MercadoPagoError extends Error {
+  status = 502;
+  code = 'MERCADOPAGO_ERROR' as const;
+
+  constructor(
+    message = 'MercadoPago integration error',
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.name = 'MercadoPagoError';
+  }
+}
