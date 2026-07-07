@@ -8,14 +8,14 @@
 
 ## Review Workload Forecast
 
-| Field | Value |
-|-------|-------|
-| Estimated changed lines | 600-900 |
-| 400-line budget risk | High |
-| Chained PRs recommended | No |
-| Suggested split | Feature branch única `feature/cambio-007-mercadopago`; `size:exception` aceptado si >400 líneas |
-| Delivery strategy | single-pr |
-| Chain strategy | feature-branch-unique |
+| Field                   | Value                                                                                           |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| Estimated changed lines | 600-900                                                                                         |
+| 400-line budget risk    | High                                                                                            |
+| Chained PRs recommended | No                                                                                              |
+| Suggested split         | Feature branch única `feature/cambio-007-mercadopago`; `size:exception` aceptado si >400 líneas |
+| Delivery strategy       | single-pr                                                                                       |
+| Chain strategy          | feature-branch-unique                                                                           |
 
 Decision needed before apply: No
 Chained PRs recommended: No
@@ -110,14 +110,14 @@ Etapa `apply`: ejecutar T1→T8 con TDD. Proceder con feature branch única; `si
 
 ## Progreso apply
 
-- [ ] T1 — Agregar dependencia `mercadopago`
-- [ ] T2 — Variables de entorno MP + tests TDD
-- [ ] T3 — Refactor `StubPaymentGateway.processWebhook`
-- [ ] T4 — Agregar `MercadoPagoError`
-- [ ] T5 — Implementar `MercadoPagoGateway` con SDK mockeado
-- [ ] T6 — Cablear `MercadoPagoGateway` en la factoría
-- [ ] T7 — Delegar webhook al gateway en `payments.routes.ts`
-- [ ] T8 — Regresión y formato
+- [x] T1 — Agregar dependencia `mercadopago`
+- [x] T2 — Variables de entorno MP + tests TDD
+- [x] T3 — Refactor `StubPaymentGateway.processWebhook`
+- [x] T4 — Agregar `MercadoPagoError`
+- [x] T5 — Implementar `MercadoPagoGateway` con SDK mockeado
+- [x] T6 — Cablear `MercadoPagoGateway` en la factoría
+- [x] T7 — Delegar webhook al gateway en `payments.routes.ts`
+- [x] T8 — Regresión y formato
 
 ---
 
@@ -127,11 +127,11 @@ Etapa `apply`: ejecutar T1→T8 con TDD. Proceder con feature branch única; `si
 - **400-line budget risk:** High
 - **PR strategy:** Feature branch única `feature/cambio-007-mercadopago`; `size:exception` aceptado si >400 líneas.
 
-| REQ | Tarea(s) |
-|-----|----------|
-| REQ-001 (MODIFIED) | T5, T7 |
-| REQ-002 (MODIFIED) | T3, T5, T7 |
-| REQ-005 (MODIFIED) | T3, T4, T5, T6, T7 |
-| REQ-MP-ENV | T2 |
-| REQ-MP-REVERSELOOKUP | T5 |
-| REQ-MP-NOTIFICATION | T5, T7 |
+| REQ                  | Tarea(s)           |
+| -------------------- | ------------------ |
+| REQ-001 (MODIFIED)   | T5, T7             |
+| REQ-002 (MODIFIED)   | T3, T5, T7         |
+| REQ-005 (MODIFIED)   | T3, T4, T5, T6, T7 |
+| REQ-MP-ENV           | T2                 |
+| REQ-MP-REVERSELOOKUP | T5                 |
+| REQ-MP-NOTIFICATION  | T5, T7             |

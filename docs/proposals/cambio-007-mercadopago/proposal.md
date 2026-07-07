@@ -38,13 +38,13 @@
 
 ## Risks / Tradeoffs
 
-| Riesgo                                            | Prob | Mitigación                                                                                       |
-| ------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------ |
-| Reverse-lookup `mpPaymentId → payment.id` frágil  | Med  | Test ida y vuelta `init → mpPaymentId → webhook → lookup`.                    |
-| Breaking change del SDK entre versiones mayores   | Med  | Fijar `~2.x` en `package.json`; lockfile versionado.                                      |
-| Sandbox ≠ prod (`init_point` vs `sandbox_init_point`) | Med  | Flag `MP_SANDBOX` explícito; integration tests MP solo sandbox.            |
-| Refactor webhook rompe tests stub existentes      | Med  | `paymentGateway.test.ts` + `payments.lifecycle.test.ts` verdes antes de merge. |
-| Dependencia externa adicional de vendor           | Bajo | Aceptada: SDK oficial reduce bugs de seguridad y mantiene tipos TS.            |
+| Riesgo                                                | Prob | Mitigación                                                                     |
+| ----------------------------------------------------- | ---- | ------------------------------------------------------------------------------ |
+| Reverse-lookup `mpPaymentId → payment.id` frágil      | Med  | Test ida y vuelta `init → mpPaymentId → webhook → lookup`.                     |
+| Breaking change del SDK entre versiones mayores       | Med  | Fijar `~2.x` en `package.json`; lockfile versionado.                           |
+| Sandbox ≠ prod (`init_point` vs `sandbox_init_point`) | Med  | Flag `MP_SANDBOX` explícito; integration tests MP solo sandbox.                |
+| Refactor webhook rompe tests stub existentes          | Med  | `paymentGateway.test.ts` + `payments.lifecycle.test.ts` verdes antes de merge. |
+| Dependencia externa adicional de vendor               | Bajo | Aceptada: SDK oficial reduce bugs de seguridad y mantiene tipos TS.            |
 
 ## Open Questions
 

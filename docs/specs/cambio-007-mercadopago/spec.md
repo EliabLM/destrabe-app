@@ -178,21 +178,21 @@ Cuando MP notifica un estado no terminal (`pending`, `in_process`, `in_mediation
 
 ## Requisitos sin cambios (informativo)
 
-| REQ | Descripción | Estado |
-|-----|-------------|--------|
-| REQ-003 | Cálculo de comisión (`calculateCommission`) | Sin cambios |
+| REQ     | Descripción                                                               | Estado      |
+| ------- | ------------------------------------------------------------------------- | ----------- |
+| REQ-003 | Cálculo de comisión (`calculateCommission`)                               | Sin cambios |
 | REQ-004 | Estados y transiciones de Payment (`PENDING→CONFIRMED`, `PENDING→FAILED`) | Sin cambios |
 
 ---
 
 ## Cobertura de escenarios
 
-| Categoría | Estado |
-|-----------|--------|
-| Happy paths (init MP, webhook approved, reverse-lookup) | ✅ Cubiertos |
-| Edge cases (retry MP, no-terminal states, sandbox default) | ✅ Cubiertos |
-| Error states (firma inválida 401, lookup miss 404, env faltante) | ✅ Cubiertos |
-| Idempotencia (webhook duplicado, retry MP) | ✅ Cubiertos |
-| Regresión REQ-003/004 | ✅ Sin cambios |
+| Categoría                                                        | Estado         |
+| ---------------------------------------------------------------- | -------------- |
+| Happy paths (init MP, webhook approved, reverse-lookup)          | ✅ Cubiertos   |
+| Edge cases (retry MP, no-terminal states, sandbox default)       | ✅ Cubiertos   |
+| Error states (firma inválida 401, lookup miss 404, env faltante) | ✅ Cubiertos   |
+| Idempotencia (webhook duplicado, retry MP)                       | ✅ Cubiertos   |
+| Regresión REQ-003/004                                            | ✅ Sin cambios |
 
 **Próximo paso:** `sdd-design` para arquitectura de `MercadoPagoGateway`, refactor del webhook route, y estrategia de testing.

@@ -329,3 +329,102 @@ describe('parseEnv — payment env vars T2 (cambio-006)', () => {
     expect(env.PAYMENT_WEBHOOK_TOKEN).toBe('super-secret-token');
   });
 });
+
+/**
+ * T2 — Variables de entorno MP (cambio-007 / REQ-MP-ENV)
+ *
+ * Valida:
+ *  - MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, MP_WEBHOOK_URL requeridos en prod+mercadopago
+ *  - MP_SANDBOX default true en desarrollo
+ *  - MP vars opcionales con stub
+ */
+describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+  const MP_TOKEN = 'mp-access-token-12345';
+  const MP_SECRET = 'mp-webhook-secret';
+  const MP_WEBHOOK_URL = 'https://webhooks.example.com/payments/webhook';
+
+  it('accepts valid MP env in production with all MP vars present', () => {
+    const env = parseEnv({
+      NODE_ENV: 'production',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'some-token',
+      PAYMENT_GATEWAY: 'mercadopago',
+      MP_ACCESS_TOKEN: MP_TOKEN,
+      MP_WEBHOOK_SECRET: MP_SECRET,
+      MP_WEBHOOK_URL: MP_WEBHOOK_URL,
+    });
+    expect(env.MP_ACCESS_TOKEN).toBe(MP_TOKEN);
+    expect(env.MP_WEBHOOK_SECRET).toBe(MP_SECRET);
+    expect(env.MP_WEBHOOK_URL).toBe(MP_WEBHOOK_URL);
+  });
+
+  it('throws mentioning MP_ACCESS_TOKEN when missing in prod+mercadopago', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        REDIS_URL: 'redis://localhost:6379',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+        PAYMENT_WEBHOOK_TOKEN: 'some-token',
+        PAYMENT_GATEWAY: 'mercadopago',
+        MP_WEBHOOK_SECRET: MP_SECRET,
+        MP_WEBHOOK_URL: MP_WEBHOOK_URL,
+      }),
+    ).toThrow(/MP_ACCESS_TOKEN/);
+  });
+
+  it('defaults MP_SANDBOX to true in development', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'some-token',
+    });
+    expect(env.MP_SANDBOX).toBe(true);
+  });
+
+  it('allows MP vars to be absent when PAYMENT_GATEWAY=stub', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.MP_ACCESS_TOKEN).toBeUndefined();
+    expect(env.MP_WEBHOOK_SECRET).toBeUndefined();
+    expect(env.MP_WEBHOOK_URL).toBeUndefined();
+    // MP_SANDBOX defaults to true in test (non-production)
+    expect(env.MP_SANDBOX).toBe(true);
+  });
+
+  it('sets MP_SANDBOX to false in production when explicitly provided', () => {
+    const env = parseEnv({
+      NODE_ENV: 'production',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'some-token',
+      MP_SANDBOX: 'false',
+    });
+    expect(env.MP_SANDBOX).toBe(false);
+  });
+
+  it('throws mentioning MP_WEBHOOK_URL when missing in prod+mercadopago', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        REDIS_URL: 'redis://localhost:6379',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+        PAYMENT_WEBHOOK_TOKEN: 'some-token',
+        PAYMENT_GATEWAY: 'mercadopago',
+        MP_ACCESS_TOKEN: MP_TOKEN,
+        MP_WEBHOOK_SECRET: MP_SECRET,
+      }),
+    ).toThrow(/MP_WEBHOOK_URL/);
+  });
+});
