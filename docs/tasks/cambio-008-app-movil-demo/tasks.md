@@ -151,11 +151,11 @@ Listo para `apply`: ejecutar T1→T15. Backend TDD estricto; mobile verificació
 
 ## Progreso apply
 
-- [ ] T1 — CORS deps + env + test TDD
-- [ ] T2 — Wire `cors()` en app.ts
-- [ ] T3 — Shared operator schemas
-- [ ] T4 — Operator routes + tests TDD
-- [ ] T5 — `/api/me` route + tests TDD
+- [x] T1 — CORS deps + env + test TDD
+- [x] T2 — Wire `cors()` en app.ts
+- [x] T3 — Shared operator schemas
+- [x] T4 — Operator routes + tests TDD
+- [x] T5 — `/api/me` route + tests TDD
 - [ ] T6 — Scaffold Expo Dev Build
 - [ ] T7 — Stores + Axios + SecureStorage
 - [ ] T8 — Navigation tree + App bootstrap
