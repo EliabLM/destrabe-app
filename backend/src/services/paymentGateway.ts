@@ -27,7 +27,7 @@ export interface PaymentGateway {
     headers?: WebhookHeaders,
   ): Promise<{
     paymentId: string;
-    status: 'CONFIRMED' | 'FAILED';
+    status: 'CONFIRMED' | 'FAILED' | 'ignored';
     gatewayReference?: string;
   }>;
 }

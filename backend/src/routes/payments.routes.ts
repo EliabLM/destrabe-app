@@ -117,6 +117,11 @@ paymentsRouter.post(
         return res.json({ status: payment.status });
       }
 
+      // REQ-MP-NOTIFICATION: no terminal → ignorar sin mutar BD
+      if (result.status === 'ignored') {
+        return res.json({ status: 'ignored' });
+      }
+
       // REQ-003: Recalcular comisión (defensa si amount mutó)
       const { commission, operatorAmount } = calculateCommission(
         payment.amount,
@@ -127,7 +132,7 @@ paymentsRouter.post(
       const updated = await prisma.payment.update({
         where: { id: payment.id },
         data: {
-          status: result.status,
+          status: result.status as 'CONFIRMED' | 'FAILED',
           commission,
           operatorAmount,
           mpPaymentId: result.gatewayReference ?? payment.mpPaymentId,
