@@ -4,6 +4,8 @@ import { authHandler } from '../lib/auth';
 import { servicesRouter } from './services.routes';
 import { serviceQuotesRouter, quotesAcceptRouter } from './quotes.routes';
 import { paymentsRouter } from './payments.routes';
+import { operatorRouter } from './operator.routes';
+import { meRouter } from './me.routes';
 
 export const router = Router();
 
@@ -27,3 +29,12 @@ router.use('/quotes', quotesAcceptRouter);
 // POST /:id/init — CLIENT dueño inicia pago
 // POST /webhook  — público con X-Webhook-Token
 router.use('/payments', paymentsRouter);
+
+// Operator: monta rutas de operador bajo /api/operator (cambio-008 / T4).
+// POST /api/operator/profile  — crear perfil
+// PATCH /api/operator/location — actualizar ubicación
+router.use('/api/operator', operatorRouter);
+
+// /me: monta sesión compuesta bajo /api/me (cambio-008 / T5).
+// GET /api/me — hidratación de sesión (user + perfiles)
+router.use('/api/me', meRouter);

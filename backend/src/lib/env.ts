@@ -43,6 +43,9 @@ const envSchema = z.object({
     .optional()
     .default('true')
     .transform((v) => v === 'true'),
+  // T1 — CORS origin for Express cors() middleware (cambio-008 / D4).
+  // Default '*' for Demo; configure specific origin(s) for production.
+  CORS_ORIGIN: z.string().default('*'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,0 +1,13 @@
+android/
+ios/
+.expo/
+dist/
+node_modules/
+*.tsbuildinfo
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/

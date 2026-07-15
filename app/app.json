@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "destrabe",
+    "slug": "destrabe",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "destrabe",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#1a1a2e"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.destrabe.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.destrabe.app"
+    },
+    "plugins": [
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsDownloadToken": "$(MAPBOX_DOWNLOADS_TOKEN)"
+        }
+      ]
+    ]
+  }
+}

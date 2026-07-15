@@ -176,6 +176,7 @@ Escenario: startup sin variable requerida
 ---
 
 **Notas de implementación:**
+
 - Polling suspendido cuando la app está en background (AppState !== 'active').
 - Deep link de regreso desde MP sandbox: `expo-linking` con scheme `destrabe://` + `WebBrowser.openBrowserAsync`. No se implementa deep link handler; MP solo envía webhook server-side. La app confirma vía polling.
 - Socket.io-client incluido como dependencia pero sin conexión real en Demo (scaffold only).
