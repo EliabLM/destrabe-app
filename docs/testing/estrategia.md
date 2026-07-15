@@ -8,6 +8,16 @@ Red → Green → Refactor. Cada pieza de código nace de un test que la justifi
 2. Escribir la implementación mínima para que pase (GREEN).
 3. Refactorizar manteniendo el test verde.
 
+## Suites separadas (backend)
+
+| Suite | Comando            | Requiere DB  | Config                | Alcance                                                              |
+| ----- | ------------------ | ------------ | --------------------- | -------------------------------------------------------------------- |
+| unit  | `npm test`         | No           | `vitest.config.ts`    | schemas Zod, env, middleware, routes (sin tocar Postgres)            |
+| db    | `npm run test:db`  | Sí (`db:up`) | `vitest.db.config.ts` | relaciones Prisma, cascade, enum constraints (fileParallelism=false) |
+| all   | `npm run test:all` | Sí           | ambos                 | unit + db                                                            |
+
+Helper de tests DB: `backend/__tests__/db/helpers.ts` — `prisma` + `resetDb()` (TRUNCATE todas las tablas CASCADE, en una sola sentencia para evitar deadlocks).
+
 ## Runners por dominio
 
 | Dominio                    | Runner           | Alcance                                      |
@@ -45,8 +55,55 @@ npm run test -w @destrabe/backend  # solo backend
 
 ## Integración vs unitario
 
-- **Unitario**: schemas (shared), `parseEnv`, middleware directo.
-- **Integración**: `/health` vía supertest, resolución de workspace (`@destrabe/shared` desde backend).
+- **Unitario**: schemas (shared), `parseEnv`, middleware directo, config de auth (`auth.config.test.ts`), Plivo client (`plivo.test.ts`).
+- **Integración**: `/health` vía supertest, resolución de workspace (`@destrabe/shared` desde backend), montaje de auth handler (`auth.mount.test.ts`).
+- **DB smoke (auth flow)**: `auth.otp.flow.test.ts` — flujo OTP end-to-end (send → verify → get-session → sign-out) con Postgres real, `request.agent` (cookie jar) y mock de Plivo que captura el código generado por el plugin. Cubre REQ-006/007/010 de `cambio-003-auth`.
+
+### Suite auth flow (`auth.otp.flow.test.ts`)
+
+| Aspecto        | Valor                                                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite          | db (`vitest.db.config.ts`, `fileParallelism=false`)                                                                                      |
+| Requiere       | Postgres up + migración `add_auth_identity` aplicada                                                                                     |
+| Cookie jar     | `supertest.agent(app)` conserva cookies entre requests                                                                                   |
+| Mock           | `vi.mock('../src/lib/plivo', ...)` captura `sendOtp({phoneNumber, code})`                                                                |
+| Limpieza       | `TRUNCATE` de `User/Session/Account/Verification` (CASCADE) por test                                                                     |
+| `DATABASE_URL` | Debes inyectarla al proceso que lanza vitest (no basta `process.env` dentro del test — el singleton `prisma` lo captura en construcción) |
+
+> **Desviación documentada:** las rutas reales del plugin `phoneNumber` son `/phone-number/send-otp` y `/phone-number/verify` (no `/phone/send-otp` y `/phone/verify-otp` como decía la spec §7.1). Ver ADR-003 y cabecera del test.
+
+### Suite services lifecycle (`services.lifecycle.test.ts`)
+
+Db smoke end-to-end de los 4 endpoints de `/services` (cambio-004 / REQ-002/003/004/005/010). Autentica CLIENT y OPERATOR vía el flujo OTP (reusa el mock de Plivo) y ejercita la FSM, la búsqueda PostGIS y la migración `init_postgis`.
+
+| Aspecto    | Valor                                                                                                                        |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Suite      | db (`vitest.db.config.ts`, `fileParallelism=false`)                                                                          |
+| Requiere   | Postgres+PostGIS up + Redis up (`db:up`) + migración `init_postgis` aplicada                                                 |
+| Cookie jar | `supertest.agent(createApp())` por usuario; múltiples agentes por test (client, operator, client2)                           |
+| Mock plivo | `vi.mock('../../src/lib/plivo', ...)` captura el OTP para reintegrarlo en `/verify`                                          |
+| Mock queue | `vi.mock('../../src/lib/queue', ...)` no-op `enqueueServiceExpiry` — evita `new Queue`/`new IORedis` al cargar `queue.ts`    |
+| Helper rol | `authenticateAs(phone, role)` — OTP flow + `prisma.user.update({role})` si no es CLIENT (getSession releé el rol de la fila) |
+| Limpieza   | `TRUNCATE` de 11 tablas (Service, ClientProfile, User, Session, …) CASCADE por test                                          |
+| PostGIS    | `seedService({status, lat, lng})` siembra directamente; Bogotá 4.65/-74.10, ~10km = +0.09 deg lat                            |
+
+Casos cubiertos: POST (201 PENDING + ClientProfile lazy; 401 sin auth; 403 non-CLIENT), GET /:id (dueño completo / operador público / ajeno 404 / inexistente 404), PATCH (PENDING→CANCELLED 200; ilegal 409), GET /nearby (PENDING 1km dentro / ~10km fora / COMPLETED fora; 403 non-OPERATOR), init_postgis idempotente (`pg_extension` + `CREATE EXTENSION IF NOT EXISTS`).
+
+### Suite quotes lifecycle (`quotes.lifecycle.test.ts`)
+
+Db smoke end-to-end de los 3 endpoints de quotes (cambio-005 / REQ-001..007). Autentica CLIENT y OPERATOR vía OTP y ejercita el flujo core: cotizar → aceptar → ACTIVE + Payment stub.
+
+| Aspecto         | Valor                                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------- |
+| Suite           | db (`vitest.db.config.ts`, `fileParallelism=false`)                                                             |
+| Requiere        | Postgres+PostGIS up + Redis up (`db:up`) + migración `init_postgis`                                             |
+| Cookie jar      | `supertest.agent(createApp())` por usuario; client + operator + operator2 + client2 en el mismo test            |
+| Mock plivo      | `vi.mock('../../src/lib/plivo', ...)` captura el OTP para `/verify`                                             |
+| Mock queue      | `vi.mock('../../src/lib/queue', ...)` no-op `enqueueServiceExpiry` — evita Redis connection al importar         |
+| Helper operator | `authenticateOperatorWithProfile(phone)` — OTP flow + `user.update({role:OPERATOR})` + `operatorProfile.create` |
+| Limpieza        | `truncateAll` de 11 tablas (incluye Quote/Payment) CASCADE por test                                             |
+
+Casos cubiertos: POST quote (PENDING→QUOTED 201; segunda quote QUOTED no transiciona; 422 sin OperatorProfile; 409 ACTIVE; 403 non-OPERATOR; 401), GET quotes (dueño todas + operator data; operador solo suyas; ajeno 404), POST accept (QUOTED→ACTIVE + Payment stub + acceptedQuoteId; 409 doble-accept ALREADY_ACCEPTED; 403 no-dueño).
 
 ## Próximos dominios (futuro)
 

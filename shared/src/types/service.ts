@@ -5,3 +5,17 @@ export enum ServiceStatus {
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
+
+export enum ServiceType {
+  BREAKDOWN = 'BREAKDOWN',
+  TRANSFER = 'TRANSFER',
+}
+
+// `z.infer` inferred types from Zod schemas (source of truth in schemas/)
+export type {
+  CreateServiceInput,
+  NearbyServicesQuery,
+  UpdateServiceStatusInput,
+  CreateQuoteInput,
+  AcceptQuoteInput,
+} from '../schemas/service.schema';

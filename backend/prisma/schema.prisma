@@ -6,3 +6,226 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum UserRole {
+  CLIENT
+  OPERATOR
+  ADMIN
+}
+
+enum ServiceType {
+  BREAKDOWN
+  TRANSFER
+}
+
+enum ServiceStatus {
+  PENDING
+  QUOTED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  REFUNDED
+}
+
+model ClientProfile {
+  id       String    @id @default(cuid())
+  userId   String    @unique
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services Service[]
+
+  @@index([userId])
+}
+
+model OperatorProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  truckType     String
+  licensePlate  String
+  photoUrl      String?
+  available     Boolean   @default(false)
+  rating        Float     @default(0)
+  ratingCount   Int       @default(0)
+  lastLatitude  Float?
+  lastLongitude Float?
+  lastSeenAt    DateTime?
+  mpAccountId   String?
+
+  quotes  Quote[]
+  reviews Review[]
+
+  @@index([userId])
+}
+
+model Service {
+  id              String        @id @default(cuid())
+  clientProfileId String
+  client          ClientProfile @relation(fields: [clientProfileId], references: [id], onDelete: Cascade)
+
+  type        ServiceType
+  status      ServiceStatus @default(PENDING)
+  description String?
+  photoUrl    String?
+
+  originLat     Float
+  originLng     Float
+  originAddress String?
+  destLat       Float?
+  destLng       Float?
+  destAddress   String?
+
+  acceptedQuoteId String? @unique
+  acceptedQuote   Quote?  @relation("AcceptedQuote", fields: [acceptedQuoteId], references: [id])
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quotes   Quote[]   @relation("ServiceQuotes")
+  messages Message[]
+  payment  Payment?
+  review   Review?
+
+  @@index([clientProfileId])
+  @@index([status])
+}
+
+model Quote {
+  id                String          @id @default(cuid())
+  serviceId         String
+  service           Service         @relation("ServiceQuotes", fields: [serviceId], references: [id], onDelete: Cascade)
+  operatorProfileId String
+  operator          OperatorProfile @relation(fields: [operatorProfileId], references: [id], onDelete: Cascade)
+
+  amount           Float
+  estimatedMinutes Int?
+  note             String?
+  createdAt        DateTime @default(now())
+
+  acceptedForService Service? @relation("AcceptedQuote")
+
+  @@index([serviceId])
+  @@index([operatorProfileId])
+}
+
+model Payment {
+  id        String  @id @default(cuid())
+  serviceId String  @unique
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  mpPaymentId    String?       @unique
+  amount         Float
+  commission     Float
+  operatorAmount Float
+  status         PaymentStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([serviceId])
+  @@index([senderId])
+}
+
+model Review {
+  id                String          @id @default(cuid())
+  serviceId         String          @unique
+  service           Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  operatorProfileId String
+  operator          OperatorProfile @relation(fields: [operatorProfileId], references: [id], onDelete: Cascade)
+
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@index([operatorProfileId])
+}
+
+// --- Modelos de identidad (cambio-003 / Better Auth) -----------------------
+// user/session/account/verification
+//
+// Nota de nomenclatura: el plugin `phoneNumber` de Better Auth expone el
+// teléfono en el campo `phoneNumber` (ver `UserWithPhoneNumber` en
+// better-auth/plugins) y NO permite renombrarlo. Por eso la columna Prisma es
+// `phoneNumber` (no `phone` como decía spec REQ-001/§6 y design §6). Los
+// siguientes tasks (T7 middleware, T8 shared/types) ya leen `phoneNumber` y
+// normalizan a `phone` en `req.user`. `email` queda opcional para permitir
+// registro solo por teléfono. `role` usa el enum `UserRole` (default CLIENT);
+// Better Auth lo escribe como string y Prisma hace el cast string→enum.
+
+model User {
+  id                  String   @id @default(cuid())
+  name                String?
+  email               String?  @unique
+  emailVerified       Boolean  @default(false)
+  image               String?
+  phoneNumber         String?  @unique
+  phoneNumberVerified Boolean  @default(false)
+  role                UserRole @default(CLIENT)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  sessions        Session[]
+  accounts        Account[]
+  clientProfile   ClientProfile?
+  operatorProfile OperatorProfile?
+  messages        Message[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}

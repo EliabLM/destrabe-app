@@ -9,11 +9,468 @@ describe('parseEnv', () => {
   });
 
   it('defaults NODE_ENV to development when absent', () => {
-    const env = parseEnv({ PORT: '3000' });
+    const env = parseEnv({
+      PORT: '3000',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: 'x'.repeat(32),
+      BETTER_AUTH_URL: 'http://localhost:3000',
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+    });
     expect(env.NODE_ENV).toBe('development');
   });
 
   it('throws mentioning PORT when PORT is not numeric', () => {
     expect(() => parseEnv({ PORT: 'abc' })).toThrow(/PORT/);
+  });
+});
+
+/**
+ * T10 — Ampliación tests de env (REQ-004)
+ *
+ * Valida las vars de auth introducidas en T1:
+ *  - envs auth válidos → `env.BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` seteados,
+ *    y `PLIVO_*` quedan como `string | undefined` (opcionales en modo dev).
+ *  - `BETTER_AUTH_SECRET` ausente → lanza error que menciona `BETTER_AUTH_SECRET`.
+ *  - `BETTER_AUTH_SECRET` presente pero < 32 chars → error que lo menciona.
+ *  - `BETTER_AUTH_URL` ausente o inválida → error que menciona `BETTER_AUTH_URL`.
+ *
+ * Nota: para forzar la rama *requerido* (no test-defaults) usamos
+ * `NODE_ENV: 'development'` en el input; con `NODE_ENV: 'test'` los defaults
+ * del fixture se aplicarían y no validaríamos el caso de ausencia real.
+ */
+describe('parseEnv — auth vars (REQ-004)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+
+  it('sets BETTER_AUTH_SECRET and BETTER_AUTH_URL when provided (valid)', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+    });
+    expect(env.BETTER_AUTH_SECRET).toBe(VALID_SECRET);
+    expect(env.BETTER_AUTH_URL).toBe(VALID_URL);
+  });
+
+  it('keeps PLIVO_* as string | undefined when not provided', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+    });
+    expect(env.PLIVO_AUTH_ID).toBeUndefined();
+    expect(env.PLIVO_AUTH_TOKEN).toBeUndefined();
+    expect(env.PLIVO_PHONE_NUMBER).toBeUndefined();
+  });
+
+  it('keeps PLIVO_* values when provided', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+      PLIVO_AUTH_ID: 'auth-id',
+      PLIVO_AUTH_TOKEN: 'auth-token',
+      PLIVO_PHONE_NUMBER: '+571234567890',
+    });
+    expect(env.PLIVO_AUTH_ID).toBe('auth-id');
+    expect(env.PLIVO_AUTH_TOKEN).toBe('auth-token');
+    expect(env.PLIVO_PHONE_NUMBER).toBe('+571234567890');
+  });
+
+  it('throws mentioning BETTER_AUTH_SECRET when it is absent (non-test env)', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/BETTER_AUTH_SECRET/);
+  });
+
+  it('throws mentioning BETTER_AUTH_SECRET when it is shorter than 32 chars', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_SECRET: 'too-short',
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/BETTER_AUTH_SECRET/);
+  });
+
+  it('throws mentioning BETTER_AUTH_URL when it is absent (non-test env)', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+      }),
+    ).toThrow(/BETTER_AUTH_URL/);
+  });
+
+  it('throws mentioning BETTER_AUTH_URL when it is not a valid URL', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: 'not-a-url',
+      }),
+    ).toThrow(/BETTER_AUTH_URL/);
+  });
+});
+
+/**
+ * T10 — Ampliación tests env vars de servicio (REQ-008)
+ *
+ * Valida:
+ *  - REDIS_URL requerida en dev/prod, opcional en test (default aplicado)
+ *  - SERVICE_TIMEOUT_MINUTES default 15
+ *  - NEARBY_RADIUS_KM default 5
+ *
+ * Ver spec: docs/specs/cambio-004-servicios/spec.md (REQ-008)
+ */
+describe('parseEnv — service env vars T10 (REQ-008)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+
+  it('allows REDIS_URL to be absent in test mode (uses default)', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.REDIS_URL).toBe('redis://localhost:6379');
+  });
+
+  it('throws mentioning REDIS_URL when absent in development mode', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/REDIS_URL/);
+  });
+
+  it('throws mentioning REDIS_URL when absent in production mode', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/REDIS_URL/);
+  });
+
+  it('accepts REDIS_URL when explicitly provided in development', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      REDIS_URL: 'redis://custom:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+    });
+    expect(env.REDIS_URL).toBe('redis://custom:6379');
+  });
+
+  it('defaults SERVICE_TIMEOUT_MINUTES to 15 when absent', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.SERVICE_TIMEOUT_MINUTES).toBe(15);
+  });
+
+  it('accepts SERVICE_TIMEOUT_MINUTES override', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      SERVICE_TIMEOUT_MINUTES: '30',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.SERVICE_TIMEOUT_MINUTES).toBe(30);
+  });
+
+  it('defaults NEARBY_RADIUS_KM to 5 when absent', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.NEARBY_RADIUS_KM).toBe(5);
+  });
+
+  it('accepts NEARBY_RADIUS_KM override', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      NEARBY_RADIUS_KM: '10',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.NEARBY_RADIUS_KM).toBe(10);
+  });
+});
+
+/**
+ * T2 — Ampliación tests env vars de pago (cambio-006 / REQ-001/002/003/005)
+ *
+ * Valida:
+ *  - PAYMENT_GATEWAY default 'stub', override 'mercadopago' válido
+ *  - PAYMENT_COMMISSION_RATE default 0, override válido, inválido rechazado
+ *  - PAYMENT_WEBHOOK_TOKEN default en test, requerido en dev/prod
+ */
+describe('parseEnv — payment env vars T2 (cambio-006)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+
+  it('defaults PAYMENT_GATEWAY to stub when absent', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.PAYMENT_GATEWAY).toBe('stub');
+  });
+
+  it('accepts PAYMENT_GATEWAY=mercadopago', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      PAYMENT_GATEWAY: 'mercadopago',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.PAYMENT_GATEWAY).toBe('mercadopago');
+  });
+
+  it('defaults PAYMENT_COMMISSION_RATE to 0 when absent', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.PAYMENT_COMMISSION_RATE).toBe(0);
+  });
+
+  it('accepts PAYMENT_COMMISSION_RATE override', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      PAYMENT_COMMISSION_RATE: '10',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.PAYMENT_COMMISSION_RATE).toBe(10);
+  });
+
+  it('rejects PAYMENT_COMMISSION_RATE above 100', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'test',
+        PAYMENT_COMMISSION_RATE: '150',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow();
+  });
+
+  it('rejects PAYMENT_COMMISSION_RATE negative', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'test',
+        PAYMENT_COMMISSION_RATE: '-5',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow();
+  });
+
+  it('provides default PAYMENT_WEBHOOK_TOKEN in test mode', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.PAYMENT_WEBHOOK_TOKEN).toBe('test-webhook-token');
+  });
+
+  it('throws mentioning PAYMENT_WEBHOOK_TOKEN when absent in development mode', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'development',
+        REDIS_URL: 'redis://localhost:6379',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/PAYMENT_WEBHOOK_TOKEN/);
+  });
+
+  it('throws mentioning PAYMENT_WEBHOOK_TOKEN when absent in production mode', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        REDIS_URL: 'redis://localhost:6379',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow(/PAYMENT_WEBHOOK_TOKEN/);
+  });
+
+  it('accepts PAYMENT_WEBHOOK_TOKEN in development mode when provided', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      PAYMENT_WEBHOOK_TOKEN: 'super-secret-token',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.PAYMENT_WEBHOOK_TOKEN).toBe('super-secret-token');
+  });
+});
+
+/**
+ * T2 — Variables de entorno MP (cambio-007 / REQ-MP-ENV)
+ *
+ * Valida:
+ *  - MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET, MP_WEBHOOK_URL requeridos en prod+mercadopago
+ *  - MP_SANDBOX default true en desarrollo
+ *  - MP vars opcionales con stub
+ */
+describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+  const MP_TOKEN = 'mp-access-token-12345';
+  const MP_SECRET = 'mp-webhook-secret';
+  const MP_WEBHOOK_URL = 'https://webhooks.example.com/payments/webhook';
+
+  it('accepts valid MP env in production with all MP vars present', () => {
+    const env = parseEnv({
+      NODE_ENV: 'production',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'some-token',
+      PAYMENT_GATEWAY: 'mercadopago',
+      MP_ACCESS_TOKEN: MP_TOKEN,
+      MP_WEBHOOK_SECRET: MP_SECRET,
+      MP_WEBHOOK_URL: MP_WEBHOOK_URL,
+    });
+    expect(env.MP_ACCESS_TOKEN).toBe(MP_TOKEN);
+    expect(env.MP_WEBHOOK_SECRET).toBe(MP_SECRET);
+    expect(env.MP_WEBHOOK_URL).toBe(MP_WEBHOOK_URL);
+  });
+
+  it('throws mentioning MP_ACCESS_TOKEN when missing in prod+mercadopago', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        REDIS_URL: 'redis://localhost:6379',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+        PAYMENT_WEBHOOK_TOKEN: 'some-token',
+        PAYMENT_GATEWAY: 'mercadopago',
+        MP_WEBHOOK_SECRET: MP_SECRET,
+        MP_WEBHOOK_URL: MP_WEBHOOK_URL,
+      }),
+    ).toThrow(/MP_ACCESS_TOKEN/);
+  });
+
+  it('defaults MP_SANDBOX to true in development', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'some-token',
+    });
+    expect(env.MP_SANDBOX).toBe(true);
+  });
+
+  it('allows MP vars to be absent when PAYMENT_GATEWAY=stub', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.MP_ACCESS_TOKEN).toBeUndefined();
+    expect(env.MP_WEBHOOK_SECRET).toBeUndefined();
+    expect(env.MP_WEBHOOK_URL).toBeUndefined();
+    // MP_SANDBOX defaults to true in test (non-production)
+    expect(env.MP_SANDBOX).toBe(true);
+  });
+
+  it('sets MP_SANDBOX to false in production when explicitly provided', () => {
+    const env = parseEnv({
+      NODE_ENV: 'production',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'some-token',
+      MP_SANDBOX: 'false',
+    });
+    expect(env.MP_SANDBOX).toBe(false);
+  });
+
+  it('throws mentioning MP_WEBHOOK_URL when missing in prod+mercadopago', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'production',
+        REDIS_URL: 'redis://localhost:6379',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+        PAYMENT_WEBHOOK_TOKEN: 'some-token',
+        PAYMENT_GATEWAY: 'mercadopago',
+        MP_ACCESS_TOKEN: MP_TOKEN,
+        MP_WEBHOOK_SECRET: MP_SECRET,
+      }),
+    ).toThrow(/MP_WEBHOOK_URL/);
+  });
+});
+
+/**
+ * T1 — CORS_ORIGIN env var (cambio-008 / D4)
+ *
+ * Valida:
+ *  - CORS_ORIGIN default '*' cuando no se provee
+ *  - CORS_ORIGIN acepta valor custom
+ *  - CORS_ORIGIN acepta '*' explícito
+ */
+describe('parseEnv — CORS_ORIGIN (cambio-008 T1)', () => {
+  const VALID_SECRET = 'a'.repeat(32);
+  const VALID_URL = 'http://localhost:3000';
+
+  it('defaults CORS_ORIGIN to "*" when absent', () => {
+    const env = parseEnv({
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    });
+    expect(env.CORS_ORIGIN).toBe('*');
+  });
+
+  it('accepts a custom CORS_ORIGIN value', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: 'https://app.destrabe.com',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+    });
+    expect(env.CORS_ORIGIN).toBe('https://app.destrabe.com');
+  });
+
+  it('accepts explicit "*" as CORS_ORIGIN', () => {
+    const env = parseEnv({
+      NODE_ENV: 'development',
+      CORS_ORIGIN: '*',
+      REDIS_URL: 'redis://localhost:6379',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+      PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
+    });
+    expect(env.CORS_ORIGIN).toBe('*');
   });
 });

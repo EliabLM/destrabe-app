@@ -1,0 +1,16 @@
+# Normalize all text files to LF in repo and working tree.
+# Stops phantom "modified" entries caused by core.autocrlf on Windows.
+* text=auto eol=lf
+
+# Explicit binary types (never normalize line endings)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.lockb binary
