@@ -9,10 +9,12 @@ Cerrar los 4 gaps de backend que bloquean el flujo Demo y entregar la app Expo (
 ## Capabilities
 
 **New**
+
 - `operator-onboarding`: `POST /api/operator/profile` (crear OperatorProfile: `truckType`, `licensePlate`, `photoUrl?`, `available`, `lastLat`, `lastLng`; guard `OPERATOR`; 409 si ya existe) + `PATCH /api/operator/location` (ubicación + `lastSeenAt`/`available`, perfil propio).
 - `mobile-app-demo`: app Expo Dev Build cliente+operador (polling, deep link MP), reuso de `@destrabe/shared`, Zustand y Axios Bearer interceptor.
 
 **Modified**
+
 - `auth-lifecycle`: añadir `GET /api/me` (Bearer) → `{ user, clientProfile?, operatorProfile? }`.
 
 > `service-lifecycle`, `quote-lifecycle`, `payment-lifecycle` no cambian a nivel spec (solo se consumen). `cors()` es configuración de app, no genera spec.
@@ -20,6 +22,7 @@ Cerrar los 4 gaps de backend que bloquean el flujo Demo y entregar la app Expo (
 ## In Scope
 
 **Backend (Track A — gaps bloqueantes)**
+
 - `POST /api/operator/profile`: Zod body, guard `OPERATOR`, 409 si perfil existe.
 - `PATCH /api/operator/location`: actualiza ubicación + `lastSeenAt`/`available`, perfil propio.
 - `GET /api/me`: Bearer → user + ClientProfile/OperatorProfile.
@@ -27,6 +30,7 @@ Cerrar los 4 gaps de backend que bloquean el flujo Demo y entregar la app Expo (
 - Tests TDD por endpoint (supertest).
 
 **Mobile (Track B — app Demo)**
+
 - Expo Dev Build: `package.json`, `app.json` (scheme `destrabe`, plugin Mapbox), `prebuild` documentado.
 - React Navigation v7, Zustand (auth, services, quotes, ui), Axios interceptor Bearer + logout 401.
 - Pantallas: auth OTP → onboarding → home cliente (lista+FAB) → crear solicitud (picker Mapbox, tipo, descripción) → detalle (polling quotes 5s) → aceptar quote → pago MP (`init`+`WebBrowser`+deep link+polling) → home operador (toggle available, cercanos polling) → crear quote → servicio activo (marcar COMPLETED explicando 409 `PAYMENT_PENDING`).
@@ -43,13 +47,13 @@ Cerrar los 4 gaps de backend que bloquean el flujo Demo y entregar la app Expo (
 
 ## Risks & Tradeoffs
 
-| Riesgo | Prob. | Mitigación |
-|--------|-------|------------|
-| `MAPBOX_DOWNLOADS_TOKEN` secreto; build falla sin él. | Alta | Documentar en readme; Gradle props local o EAS secrets. No commitear. |
-| Metro no resuelve `@destrabe/shared` en monorepo. | Media | `metro.config.js` con `watchFolders`+`nodeModulesPaths`; validar en primera task. |
-| `openAuthSessionAsync` no captura deep link MP en Android. | Media | `intentFilters` para scheme `destrabe`; fallback a polling. |
-| *(Tradeoff)* backend gaps + app = PR grande. | Alta | Tasks atómicas Track A→B; `work-unit-commits`. |
-| *(Tradeoff)* Bearer RN sin cookie HttpOnly podría romper `requireAuth`. | Media | Better Auth soporta Bearer; validar en primera task; fallback wrapper `session-from-bearer`. |
+| Riesgo                                                                  | Prob. | Mitigación                                                                                   |
+| ----------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------- |
+| `MAPBOX_DOWNLOADS_TOKEN` secreto; build falla sin él.                   | Alta  | Documentar en readme; Gradle props local o EAS secrets. No commitear.                        |
+| Metro no resuelve `@destrabe/shared` en monorepo.                       | Media | `metro.config.js` con `watchFolders`+`nodeModulesPaths`; validar en primera task.            |
+| `openAuthSessionAsync` no captura deep link MP en Android.              | Media | `intentFilters` para scheme `destrabe`; fallback a polling.                                  |
+| _(Tradeoff)_ backend gaps + app = PR grande.                            | Alta  | Tasks atómicas Track A→B; `work-unit-commits`.                                               |
+| _(Tradeoff)_ Bearer RN sin cookie HttpOnly podría romper `requireAuth`. | Media | Better Auth soporta Bearer; validar en primera task; fallback wrapper `session-from-bearer`. |
 
 ## Open Questions (con defaults)
 

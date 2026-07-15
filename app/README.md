@@ -4,13 +4,13 @@ Aplicación móvil Expo para la Demo de Destrabe (clientes y operadores de asist
 
 ## Prerequisites
 
-| Tool   | Version    | Notes                                |
-|--------|------------|--------------------------------------|
-| Node   | >= 20.x    |                                      |
-| npm    | >= 10.x    |                                      |
-| JDK    | >= 17      | Solo Android (temurin/recomendado)   |
+| Tool        | Version | Notes                                |
+| ----------- | ------- | ------------------------------------ |
+| Node        | >= 20.x |                                      |
+| npm         | >= 10.x |                                      |
+| JDK         | >= 17   | Solo Android (temurin/recomendado)   |
 | Android SDK | API 34+ | Solo Android, con `ANDROID_HOME` set |
-| Xcode  | >= 15.x    | Solo iOS                             |
+| Xcode       | >= 15.x | Solo iOS                             |
 
 ## Setup
 
@@ -33,16 +33,16 @@ cp .env.example .env
 
 Las siguientes variables **runtime** son necesarias (validadas al startup por la app):
 
-| Variable                    | Descripción                   | Ejemplo                          |
-|-----------------------------|-------------------------------|----------------------------------|
-| `EXPO_PUBLIC_API_URL`       | URL base del backend          | `http://localhost:3001`          |
-| `EXPO_PUBLIC_MAPBOX_TOKEN`  | Mapbox public token (runtime) | `pk.eyJ1Ijoi...`                 |
+| Variable                   | Descripción                   | Ejemplo                 |
+| -------------------------- | ----------------------------- | ----------------------- |
+| `EXPO_PUBLIC_API_URL`      | URL base del backend          | `http://localhost:3001` |
+| `EXPO_PUBLIC_MAPBOX_TOKEN` | Mapbox public token (runtime) | `pk.eyJ1Ijoi...`        |
 
 La siguiente variable es **build-time** (solo necesaria para `npx expo prebuild`):
 
-| Variable                     | Descripción                                      |
-|------------------------------|--------------------------------------------------|
-| `MAPBOX_DOWNLOADS_TOKEN`     | Mapbox secret token para descargar SDK nativo    |
+| Variable                 | Descripción                                   |
+| ------------------------ | --------------------------------------------- |
+| `MAPBOX_DOWNLOADS_TOKEN` | Mapbox secret token para descargar SDK nativo |
 
 > Obtén `MAPBOX_DOWNLOADS_TOKEN` desde [Mapbox Account > Access Tokens](https://account.mapbox.com/access-tokens/). Crea un token con scopes `DOWNLOADS:READ`. Sin este token, `@rnmapbox/maps` falla en la compilación nativa.
 
@@ -127,11 +127,11 @@ Cada dispositivo necesita su propio `.env` o se puede sobrescribir vía Expo. Pa
 
 ## Troubleshooting
 
-| Problema                          | Causa común                                      | Solución                                           |
-|-----------------------------------|--------------------------------------------------|----------------------------------------------------|
-| `@rnmapbox/maps` build fail       | `MAPBOX_DOWNLOADS_TOKEN` no configurado o inválido | Verificar token con scope `DOWNLOADS:READ`        |
-| Metro `@destrabe/shared` not found| Monorepo workspace no instalado                   | `npm install` desde raíz                           |
-| 401 en todas las requests         | Token vencido o faltante                          | Re-login en la app                                 |
-| Pantalla de error al startup      | Variable env faltante                             | Verificar `.env`                                   |
-| Mapbox no renderiza               | `EXPO_PUBLIC_MAPBOX_TOKEN` no configurado         | Verificar `.env`, recargar app                     |
-| Prebuild falla                    | Dependencias nativas no instaladas                | Ejecutar `npm install` primero                     |
+| Problema                           | Causa común                                        | Solución                                   |
+| ---------------------------------- | -------------------------------------------------- | ------------------------------------------ |
+| `@rnmapbox/maps` build fail        | `MAPBOX_DOWNLOADS_TOKEN` no configurado o inválido | Verificar token con scope `DOWNLOADS:READ` |
+| Metro `@destrabe/shared` not found | Monorepo workspace no instalado                    | `npm install` desde raíz                   |
+| 401 en todas las requests          | Token vencido o faltante                           | Re-login en la app                         |
+| Pantalla de error al startup       | Variable env faltante                              | Verificar `.env`                           |
+| Mapbox no renderiza                | `EXPO_PUBLIC_MAPBOX_TOKEN` no configurado          | Verificar `.env`, recargar app             |
+| Prebuild falla                     | Dependencias nativas no instaladas                 | Ejecutar `npm install` primero             |

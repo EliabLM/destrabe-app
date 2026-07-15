@@ -27,6 +27,7 @@ El seam `PaymentGateway` de cambio-006/007 se respeta sin modificaciones: la app
 **D4 — `cors()` en `backend/src/app.ts`.** Paquete `cors` + `@types/cors`. Origen configurable via env `CORS_ORIGIN` (string, default `*` en dev, en prod lista separada por comas o regex). Insertar entre `express.json()` y `router`. No genera spec REQ (configuración transversal, sin comportamiento de dominio).
 
 **D5 — TDD backend.** Vitest + mocks de PrismaClient (patrón cambio-004/005 auth + services tests). Tests por archivo:
+
 - `backend/__tests__/operator.routes.test.ts` — POST profile 201, 409 si existe, 401 sin Bearer, 403 si no OPERATOR; PATCH location 200, actualiza lastSeenAt, 401 sinBearer.
 - `backend/__tests__/me.routes.test.ts` — 200 con perfil completo, 200 sin perfiles (solo user), 401 sin Bearer.
 - Extender `backend/__tests__/env.test.ts` con escenarios `CORS_ORIGIN` (default dev '*', required prod).
@@ -51,6 +52,7 @@ RootStack
 `Stack.Screen` con `options` por pantalla; sin drawer navigator (Demo simple).
 
 **D9 — Zustand stores (3 pequeños).**
+
 - `authStore`: `{ user, token, role, hydrated, login(token,user), logout(), hydrate() }`. Persist SOLO token + userId en SecureStore vía middleware custom `persist` (`destrabe.token`, `destrabe.userId`).
 - `servicesStore`: `{ myServices[], activeService, fetchMy(), fetchActive() }`. Sin persist — siempre fetch fresco al montar.
 - `uiStore`: `{ loading: Set<string>, toasts[] }`. Helper `withLoading(key, fn)` para botones.
@@ -70,12 +72,14 @@ Zustand v5 con `create` y tipos TS fuertes. Stores son singletons fuera del Reac
 **D15 — SecureStore.** `expo-secure-store` con claves `destrabe.token`, `destrabe.userId`. `authStore.hydrate()` los lee en bootstrap de `App.tsx` antes de decidir el navigator root (Auth / Onboarding / Client / Operator). Escritura en `login()`, borrado en `logout()`.
 
 **D16 — Testing strategy.**
+
 - Backend (Track A): TDD estricto, Vitest + mocks Prisma. RED→GREEN.
 - Mobile (Track B): **Demo NO lleva tests unitarios RN** — el costo de testar apps RN (mocks de RN, navigation, Mapbox) es alto y no aporta confianza para Demo. Explicit tradeoff: verificación manual basada en escenarios Gherkin del spec `mobile-app-demo` con 2 dispositivos/emuladores. Mobile TDD queda como deuda para MVP.
 
 ## Archivos NEW vs MODIFIED
 
 ### Track A — Backend
+
 - **NEW** `backend/src/routes/operator.routes.ts`
 - **NEW** `backend/src/routes/me.routes.ts`
 - **NEW** `backend/__tests__/operator.routes.test.ts`
@@ -89,6 +93,7 @@ Zustand v5 con `create` y tipos TS fuertes. Stores son singletons fuera del Reac
 - **MODIFIED** `backend/package.json` (`cors` + `@types/cors` deps)
 
 ### Track B — Mobile (árbol NEW bajo `app/`, native dirs gitignored)
+
 - **NEW** `app/package.json`, `app/app.json`, `app/tsconfig.json`, `app/metro.config.js`, `app/babel.config.js`, `app/.gitignore` (exclude `android/`, `ios/`, `.expo/`)
 - **NEW** `app/src/App.tsx`
 - **NEW** `app/src/navigation/{RootStack,AuthStack,OnboardingStack,ClientStack,OperatorStack}.tsx`

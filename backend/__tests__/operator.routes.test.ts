@@ -22,8 +22,8 @@ const getSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../src/lib/auth', () => ({
   auth: { api: { getSession: getSessionMock } },
-  authHandler: vi.fn(
-    (_req: Request, _res: Response, next: NextFunction) => next(),
+  authHandler: vi.fn((_req: Request, _res: Response, next: NextFunction) =>
+    next(),
   ),
 }));
 
@@ -43,8 +43,14 @@ vi.mock('../src/lib/prisma', () => ({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function mockSession(overrides: Partial<{ id: string; phone: string; role: string }> = {}) {
-  const defaults = { id: 'user-op-1', phoneNumber: '+573001234567', role: UserRole.OPERATOR };
+function mockSession(
+  overrides: Partial<{ id: string; phone: string; role: string }> = {},
+) {
+  const defaults = {
+    id: 'user-op-1',
+    phoneNumber: '+573001234567',
+    role: UserRole.OPERATOR,
+  };
   const s = { ...defaults, ...overrides };
   getSessionMock.mockResolvedValue({ user: s });
 }
@@ -112,7 +118,10 @@ describe('POST /api/operator/profile', () => {
 
   it('responds 409 when profile already exists', async () => {
     mockSession();
-    prismaFindUniqueMock.mockResolvedValue({ id: 'op-existing', userId: 'user-op-1' });
+    prismaFindUniqueMock.mockResolvedValue({
+      id: 'op-existing',
+      userId: 'user-op-1',
+    });
 
     const res = await request(createApp())
       .post('/api/operator/profile')

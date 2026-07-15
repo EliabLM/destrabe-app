@@ -40,7 +40,12 @@ const styles = StyleSheet.create({
   inner: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#333', marginBottom: 16 },
-  description: { fontSize: 14, color: '#666', marginBottom: 24, lineHeight: 20 },
+  description: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
   button: {
     backgroundColor: '#1a73e8',
     padding: 16,

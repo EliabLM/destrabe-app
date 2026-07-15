@@ -21,8 +21,8 @@ const getSessionMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../src/lib/auth', () => ({
   auth: { api: { getSession: getSessionMock } },
-  authHandler: vi.fn(
-    (_req: Request, _res: Response, next: NextFunction) => next(),
+  authHandler: vi.fn((_req: Request, _res: Response, next: NextFunction) =>
+    next(),
   ),
 }));
 
@@ -38,8 +38,14 @@ vi.mock('../src/lib/prisma', () => ({
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function mockSession(overrides: Partial<{ id: string; phone: string; role: string }> = {}) {
-  const defaults = { id: 'user-1', phoneNumber: '+573001234567', role: UserRole.CLIENT };
+function mockSession(
+  overrides: Partial<{ id: string; phone: string; role: string }> = {},
+) {
+  const defaults = {
+    id: 'user-1',
+    phoneNumber: '+573001234567',
+    role: UserRole.CLIENT,
+  };
   const s = { ...defaults, ...overrides };
   getSessionMock.mockResolvedValue({ user: s });
 }
@@ -79,7 +85,11 @@ describe('GET /api/me', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
-      user: { id: 'user-1', phoneNumber: '+573001234567', role: UserRole.CLIENT },
+      user: {
+        id: 'user-1',
+        phoneNumber: '+573001234567',
+        role: UserRole.CLIENT,
+      },
       clientProfile: { id: 'cp-1', userId: 'user-1' },
     });
     expect(res.body.operatorProfile).toBeUndefined();
@@ -111,7 +121,11 @@ describe('GET /api/me', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
-      user: { id: 'user-1', phoneNumber: '+573001234567', role: UserRole.OPERATOR },
+      user: {
+        id: 'user-1',
+        phoneNumber: '+573001234567',
+        role: UserRole.OPERATOR,
+      },
       operatorProfile: { id: 'op-1', truckType: 'grua' },
     });
     expect(res.body.clientProfile).toBeUndefined();

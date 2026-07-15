@@ -57,6 +57,11 @@ const styles = StyleSheet.create({
   },
   type: { fontSize: 16, fontWeight: '600' },
   desc: { fontSize: 14, color: '#666', marginBottom: 4 },
-  coords: { fontSize: 12, color: '#999', fontFamily: 'monospace', marginBottom: 2 },
+  coords: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'monospace',
+    marginBottom: 2,
+  },
   date: { fontSize: 12, color: '#bbb' },
 });

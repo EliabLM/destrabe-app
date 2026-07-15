@@ -29,7 +29,9 @@ meRouter.get('/', async (req, res, next) => {
     });
 
     if (!result) {
-      return res.status(404).json({ error: 'User not found', code: 'NOT_FOUND' });
+      return res
+        .status(404)
+        .json({ error: 'User not found', code: 'NOT_FOUND' });
     }
 
     // REQ-AUTH-011: Separate user fields from profiles. Profiles go at top

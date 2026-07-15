@@ -94,7 +94,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
   subtitle: { fontSize: 18, marginBottom: 16 },
   roleHighlight: { fontWeight: 'bold', color: '#1a73e8' },
-  description: { fontSize: 14, color: '#666', marginBottom: 24, lineHeight: 20 },
+  description: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
   loadingText: { marginTop: 12, fontSize: 14, color: '#666' },
   button: {
     backgroundColor: '#1a73e8',

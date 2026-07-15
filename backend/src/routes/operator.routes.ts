@@ -1,10 +1,16 @@
 import { Router } from 'express';
 import { UserRole } from '@destrabe/shared';
-import type { CreateOperatorProfileInput, UpdateLocationInput } from '@destrabe/shared';
+import type {
+  CreateOperatorProfileInput,
+  UpdateLocationInput,
+} from '@destrabe/shared';
 import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import type { ValidatedRequest } from '../middleware/validate';
-import { createOperatorProfileSchema, updateLocationSchema } from '@destrabe/shared';
+import {
+  createOperatorProfileSchema,
+  updateLocationSchema,
+} from '@destrabe/shared';
 import { prisma } from '../lib/prisma';
 
 /**
