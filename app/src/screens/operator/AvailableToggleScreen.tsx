@@ -29,9 +29,14 @@ export default function AvailableToggleScreen() {
       });
       setAvailable(value);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const error = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       const msg =
-        error?.response?.data?.message ?? error?.message ?? 'Error al actualizar';
+        error?.response?.data?.message ??
+        error?.message ??
+        'Error al actualizar';
       Alert.alert('Error', msg);
     } finally {
       setToggling(false);

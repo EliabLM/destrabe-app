@@ -130,7 +130,7 @@ describe('POST /api/operator/profile', () => {
     expect(res.status).toBe(409);
     expect(res.body).toMatchObject({
       error: 'Profile already exists',
-      code: 'PROFILE_EXISTS',
+      code: 'PROFILE_ALREADY_EXISTS',
     });
     expect(prismaCreateMock).not.toHaveBeenCalled();
   });

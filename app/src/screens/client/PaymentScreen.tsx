@@ -119,7 +119,10 @@ export default function PaymentScreen() {
       // Browser closed — start polling
       pollPayment();
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const error = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       const msg =
         error?.response?.data?.message ??
         error?.message ??

@@ -67,7 +67,10 @@ export default function NearbyServicesScreen() {
       setNote('');
       Alert.alert('Cotización enviada', 'El cliente podrá ver tu propuesta.');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const error = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       const msg =
         error?.response?.data?.message ??
         error?.message ??

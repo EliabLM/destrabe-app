@@ -2,7 +2,7 @@
 
 App móvil de intermediación de servicios de grúa. Modelo de oferta libre (tipo InDriver): el cliente publica una solicitud, los operadores cercanos cotizan, y el cliente acepta la mejor oferta. La plataforma retiene una comisión configurable y transfiere el resto al operador mediante split de pago.
 
-> **Estado:** Fase Demo — foundation + data model + auth (OTP teléfono) + servicios (ciclo de vida) + cotizaciones (quotes/offers) listos. Sin pagos reales ni tracking en vivo aún.
+> **Estado:** Fase Demo — foundation + data model + auth (OTP teléfono) + servicios (ciclo de vida) + cotizaciones (quotes/offers) + pagos (MercadoPago sandbox) + app móvil (Expo Dev Build) listos. Sin tracking en vivo ni push aún.
 
 ## Fases
 

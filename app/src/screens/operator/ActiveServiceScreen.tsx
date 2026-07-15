@@ -48,7 +48,10 @@ export default function ActiveServiceScreen() {
         { text: 'OK', onPress: () => fetchActive() },
       ]);
     } catch (err: unknown) {
-      const error = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
+      const error = err as {
+        response?: { status?: number; data?: { message?: string } };
+        message?: string;
+      };
       if (error?.response?.status === 409) {
         Alert.alert(
           'Pago pendiente',

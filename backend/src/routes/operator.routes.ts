@@ -48,7 +48,7 @@ operatorRouter.post(
       if (existing) {
         return res.status(409).json({
           error: 'Profile already exists',
-          code: 'PROFILE_EXISTS',
+          code: 'PROFILE_ALREADY_EXISTS',
         });
       }
 

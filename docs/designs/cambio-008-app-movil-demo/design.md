@@ -18,7 +18,7 @@ El seam `PaymentGateway` de cambio-006/007 se respeta sin modificaciones: la app
 
 ### Track A — Backend gaps
 
-**D1 — `POST /api/operator/profile`.** NEW archivo `backend/src/routes/operator.routes.ts`. Reusa `validate` middleware + `requireRole(OPERATOR)` de `middleware/auth.ts`. Body Zod nuevo en `shared/src/schemas/operator.schema.ts`: `createOperatorProfileSchema` ({ truckType: string, licensePlate: string, photoUrl?: string, available?: boolean, lastLatitude?: number, lastLongitude?: number }). Flujo: verifica si ya existe OperatorProfile para userId → 409 con `code: 'PROFILE_EXISTS'`; si no, prisma.create. Retorna 201 con el perfil. Sin reorganizar routers existentes.
+**D1 — `POST /api/operator/profile`.** NEW archivo `backend/src/routes/operator.routes.ts`. Reusa `validate` middleware + `requireRole(OPERATOR)` de `middleware/auth.ts`. Body Zod nuevo en `shared/src/schemas/operator.schema.ts`: `createOperatorProfileSchema` ({ truckType: string, licensePlate: string, photoUrl?: string, available?: boolean, lastLatitude?: number, lastLongitude?: number }). Flujo: verifica si ya existe OperatorProfile para userId → 409 con `code: 'PROFILE_ALREADY_EXISTS'`; si no, prisma.create. Retorna 201 con el perfil. Sin reorganizar routers existentes.
 
 **D2 — `PATCH /api/operator/location`.** Mismo `operator.routes.ts`. Body `updateLocationSchema` ({ lastLatitude: number, lastLongitude: number, available?: boolean }). Solo toca el propio perfil (userId extraído de `req.user`). Siempre actualiza `lastSeenAt = new Date()`. Retorna 200 con el perfil actualizado. No requiere rol especial más allá del auth OPERATOR implícito al poseer el perfil.
 

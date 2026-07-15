@@ -43,7 +43,10 @@ export default function OperatorProfileScreen() {
       // Profile created → RootStack re-renders to OperatorStack
       authStore.setState({ profileReady: true });
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const error = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       const msg =
         error?.response?.data?.message ??
         error?.message ??
