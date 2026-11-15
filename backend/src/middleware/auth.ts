@@ -21,6 +21,7 @@ export interface AuthedRequest extends Request {
     id: string;
     phone: string;
     role: UserRole;
+    sessionId?: string;
   };
 }
 
@@ -41,6 +42,7 @@ interface BetterAuthUser {
 
 interface BetterAuthSession {
   user: BetterAuthUser;
+  session?: { id: string };
 }
 
 export const requireAuth: RequestHandler = async (req, res, next) => {
@@ -56,6 +58,7 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
       id: s.user.id,
       phone: s.user.phoneNumber ?? '',
       role: s.user.role as UserRole,
+      sessionId: s.session?.id,
     };
     next();
   } catch {

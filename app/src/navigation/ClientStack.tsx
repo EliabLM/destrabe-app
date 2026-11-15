@@ -1,12 +1,15 @@
 import React from 'react';
+import { Button } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ServicesListScreen from '../screens/client/ServicesListScreen';
 import NewServiceScreen from '../screens/client/NewServiceScreen';
 import ServiceDetailScreen from '../screens/client/ServiceDetailScreen';
 import PaymentScreen from '../screens/client/PaymentScreen';
+import OperatorInvitationScreen from '../screens/client/OperatorInvitationScreen';
 
 export type ClientStackParamList = {
   ServicesList: undefined;
+  OperatorInvitation: undefined;
   NewService: undefined;
   ServiceDetail: { serviceId: string };
   Payment: { serviceId: string; paymentId: string };
@@ -20,7 +23,20 @@ export function ClientStack() {
       <Stack.Screen
         name="ServicesList"
         component={ServicesListScreen}
-        options={{ title: 'Mis Servicios' }}
+        options={({ navigation }) => ({
+          title: 'Mis Servicios',
+          headerRight: () => (
+            <Button
+              title="Ser operador"
+              onPress={() => navigation.navigate('OperatorInvitation')}
+            />
+          ),
+        })}
+      />
+      <Stack.Screen
+        name="OperatorInvitation"
+        component={OperatorInvitationScreen}
+        options={{ title: 'Invitación de operador' }}
       />
       <Stack.Screen
         name="NewService"

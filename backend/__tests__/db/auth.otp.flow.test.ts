@@ -161,6 +161,26 @@ describe('Flujo OTP end-to-end (REQ-006, REQ-007, REQ-010 — T9)', () => {
     expect(sessionRes.body.user.role).toBe('CLIENT');
   });
 
+  it('rutas públicas Better Auth no permiten elevar role por OTP ni update-user', async () => {
+    const agent = request.agent(createApp());
+    await agent
+      .post('/api/auth/phone-number/send-otp')
+      .send({ phoneNumber: TEST_PHONE });
+    const code = capturedSendOtps[capturedSendOtps.length - 1].code;
+    const verified = await agent
+      .post('/api/auth/phone-number/verify')
+      .send({ phoneNumber: TEST_PHONE, code, role: 'ADMIN' });
+    expect(verified.status).toBeLessThan(300);
+    const updated = await agent
+      .post('/api/auth/update-user')
+      .send({ role: 'ADMIN', name: 'Test' });
+    expect(updated.status).toBeLessThan(500);
+    const user = await cleanupPrisma.user.findUniqueOrThrow({
+      where: { phoneNumber: TEST_PHONE },
+    });
+    expect(user.role).toBe('CLIENT');
+  });
+
   it('get-session sin cookie → null (no autenticado)', async () => {
     const app = createApp();
     const res = await request(app).get('/api/auth/get-session');
