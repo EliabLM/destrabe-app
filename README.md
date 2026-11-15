@@ -84,12 +84,12 @@ Auth centralizada en Better Auth (ADR-003), montada bajo `/api/auth` con `prisma
 
 ### Endpoints
 
-| Método | Ruta                              | Body / Efecto                                                      |
-| ------ | --------------------------------- | ------------------------------------------------------------------ |
-| POST   | `/api/auth/phone-number/send-otp` | `{ phoneNumber }` → envía código SMS (o log en dev)                |
+| Método | Ruta                              | Body / Efecto                                                                                           |
+| ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/auth/phone-number/send-otp` | `{ phoneNumber }` → envía código SMS (o log en dev)                                                     |
 | POST   | `/api/auth/phone-number/verify`   | `{ phoneNumber, code }` → `{ status, token, user }`, cookie de sesión + header `set-auth-token` firmado |
-| GET    | `/api/auth/get-session`           | `{ session, user }` o `null`                                       |
-| POST   | `/api/auth/sign-out`              | revoca la sesión enviada por cookie o Bearer y borra la cookie     |
+| GET    | `/api/auth/get-session`           | `{ session, user }` o `null`                                                                            |
+| POST   | `/api/auth/sign-out`              | revoca la sesión enviada por cookie o Bearer y borra la cookie                                          |
 
 `GET /api/me` y las rutas protegidas usan `requireAuth` → `auth.api.getSession` (cookie o Bearer con plugin); sin sesión o tras logout/expiración responden 401. Al reabrir la app se valida `/api/me` antes de reconstruir usuario/perfil; un 401 borra el token local. Cobertura de contrato sin infraestructura: `backend/__tests__/auth.mobile.contract.test.ts` ejecuta el handler Better Auth, router Express, middleware y Axios de la app con adaptador de memoria de Better Auth y bordes Prisma/Plivo/cola simulados. No prueba Postgres/Redis, envío SMS ni ejecución en dispositivo; `npm run test:db` sigue requiriendo esos servicios. La spec histórica de cambio-003 describe rutas antiguas; la corrección vigente se documenta en `docs/specs/cambio-008-app-movil-demo/auth-lifecycle.md`.
 

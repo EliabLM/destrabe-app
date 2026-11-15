@@ -62,7 +62,9 @@ export const authStore = create<AuthState>((set, get) => ({
         set({
           user: { id: user.id, phone: user.phoneNumber, role },
           role,
-          profileReady: role === UserRole.CLIENT || Boolean(clientProfile || operatorProfile),
+          profileReady:
+            role === UserRole.CLIENT ||
+            Boolean(clientProfile || operatorProfile),
         });
       } catch {
         await get().clearLocalSession();

@@ -26,10 +26,13 @@ export async function otpVerify(
   phoneNumber: string,
   code: string,
 ): Promise<VerifyOtpResponse> {
-  const res = await api.post<VerifyOtpResponse>('/api/auth/phone-number/verify', {
-    phoneNumber,
-    code,
-  });
+  const res = await api.post<VerifyOtpResponse>(
+    '/api/auth/phone-number/verify',
+    {
+      phoneNumber,
+      code,
+    },
+  );
   const token = res.headers['set-auth-token'];
   if (typeof token !== 'string' || !token) {
     throw new Error('La verificación no devolvió un token de sesión');
