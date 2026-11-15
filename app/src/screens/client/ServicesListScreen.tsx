@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { listMyServices } from '../../lib/apiServices';
+import { createServicesPager } from '../../lib/servicesPager';
+import type { PagerState } from '../../lib/servicesPager';
+import { authStore } from '../../stores/authStore';
 import type { ServiceItem } from '../../stores/servicesStore';
 import type { ClientStackParamList } from '../../navigation/ClientStack';
 
@@ -19,28 +22,36 @@ type Nav = NativeStackNavigationProp<ClientStackParamList, 'ServicesList'>;
 
 export default function ServicesListScreen() {
   const nav = useNavigation<Nav>();
-  const [services, setServices] = useState<ServiceItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const authKey = authStore((state) =>
+    state.user && state.token ? `${state.user.id}:${state.token}` : null,
+  );
+  const [snapshot, setSnapshot] = useState<{
+    key: string | null;
+    page: PagerState;
+  } | null>(null);
+  const pager = useMemo(
+    () =>
+      createServicesPager(
+        () => {
+          const state = authStore.getState();
+          return state.user && state.token
+            ? `${state.user.id}:${state.token}`
+            : null;
+        },
+        listMyServices,
+        (page) => setSnapshot({ key: authKey, page }),
+      ),
+    [authKey],
+  );
+  const page = snapshot?.key === authKey ? snapshot.page : pager.state;
+  const { items: services, loading, error, initialized, nextCursor } = page;
 
-  const fetchServices = useCallback(async () => {
-    try {
-      const data = await listMyServices();
-      setServices(data);
-    } catch {
-      // silently fail — user can pull-to-refresh
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  // Refresh on focus so returning from detail/creation shows latest
+  // A focus/identity change starts a fresh traversal. Unmount invalidates late responses.
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      fetchServices();
-    }, [fetchServices]),
+      void pager.refresh();
+      return () => pager.invalidate();
+    }, [pager]),
   );
 
   const statusColor: Record<string, string> = {
@@ -82,7 +93,7 @@ export default function ServicesListScreen() {
     </TouchableOpacity>
   );
 
-  if (loading) {
+  if (authKey && !initialized && !error) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
@@ -99,19 +110,35 @@ export default function ServicesListScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        onEndReached={() => {
+          if (nextCursor && !loading && !error) void pager.loadMore();
+        }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          error ? (
+            <TouchableOpacity
+              onPress={() => void pager.loadMore()}
+              style={styles.center}
+            >
+              <Text style={styles.errorText}>{error}</Text>
+              <Text>Reintentar</Text>
+            </TouchableOpacity>
+          ) : loading ? (
+            <ActivityIndicator />
+          ) : null
+        }
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              fetchServices();
-            }}
+            refreshing={loading && initialized}
+            onRefresh={() => void pager.refresh()}
           />
         }
         ListEmptyComponent={
-          <View style={styles.center}>
-            <Text style={styles.emptyText}>Aún no tienes servicios</Text>
-          </View>
+          !error && initialized ? (
+            <View style={styles.center}>
+              <Text style={styles.emptyText}>Aún no tienes servicios</Text>
+            </View>
+          ) : null
         }
       />
 
@@ -155,6 +182,7 @@ const styles = StyleSheet.create({
   cardDesc: { fontSize: 14, color: '#666', marginBottom: 4 },
   cardDate: { fontSize: 12, color: '#999' },
   emptyText: { fontSize: 16, color: '#999' },
+  errorText: { fontSize: 14, color: '#d32f2f', marginBottom: 8 },
   fab: {
     position: 'absolute',
     bottom: 24,
