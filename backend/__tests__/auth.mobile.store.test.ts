@@ -56,6 +56,37 @@ describe('ciclo de sesión móvil', () => {
     });
   });
 
+  it('mantiene onboarding de vehículo tras reinicio si OPERATOR solo tiene perfil cliente', async () => {
+    storage.token = 'signed-token';
+    getMeMock.mockResolvedValue({
+      user: { id: 'u1', phoneNumber: '+56912345678', role: 'OPERATOR' },
+      clientProfile: { id: 'cl1' },
+      operatorProfile: null,
+    });
+    await authStore.getState().hydrate();
+    expect(authStore.getState()).toMatchObject({
+      hydrated: true,
+      token: 'signed-token',
+      user: { role: 'OPERATOR' },
+      profileReady: false,
+    });
+  });
+
+  it('abre OperatorStack tras reinicio cuando existe perfil operador además del cliente', async () => {
+    storage.token = 'signed-token';
+    getMeMock.mockResolvedValue({
+      user: { id: 'u1', phoneNumber: '+56912345678', role: 'OPERATOR' },
+      clientProfile: { id: 'cl1' },
+      operatorProfile: { id: 'op1' },
+    });
+    await authStore.getState().hydrate();
+    expect(authStore.getState()).toMatchObject({
+      hydrated: true,
+      user: { role: 'OPERATOR' },
+      profileReady: true,
+    });
+  });
+
   it('borra el token persistido cuando el servidor rechaza la rehidratación', async () => {
     storage.token = 'expired-token';
     getMeMock.mockRejectedValue(new Error('Unauthorized'));

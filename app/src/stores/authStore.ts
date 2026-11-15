@@ -64,7 +64,9 @@ export const authStore = create<AuthState>((set, get) => ({
           role,
           profileReady:
             role === UserRole.CLIENT ||
-            Boolean(clientProfile || operatorProfile),
+            (role === UserRole.OPERATOR && Boolean(operatorProfile)) ||
+            (role === UserRole.ADMIN &&
+              Boolean(clientProfile || operatorProfile)),
         });
       } catch {
         await get().clearLocalSession();
