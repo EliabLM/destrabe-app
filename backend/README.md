@@ -1,0 +1,7 @@
+# Backend: ejecución en producción (DES-06a)
+
+Construir desde la raíz: `npm ci`, `npm run build -w @destrabe/shared`, `npx prisma generate --schema=backend/prisma/schema.prisma`, `npm run build -w @destrabe/backend`. El JS queda en `backend/dist/server.js`; las pruebas no se emiten. Configurar las variables indicadas en `backend/.env.example` mediante el gestor de secretos del entorno, **nunca** copiar esa plantilla como configuración pública. Desde `backend/`, `npm start` ejecuta `prisma migrate deploy --schema=prisma/schema.prisma` y **sólo si termina bien** inicia `node dist/server.js`. La base PostGIS y Redis son servicios externos; no se crean ni se cargan datos de prueba.
+
+La imagen se construirá en CI para `linux/arm64` desde la raíz (`docker buildx build --platform linux/arm64 -f Dockerfile .`); ambas etapas usan Debian bookworm-slim y `prisma generate` corre dentro de la etapa runtime para seleccionar su motor nativo ARM64. No ejecutar este build en el VPS. `GET /health` comprueba DB (`SELECT 1`) y Redis (`PING`), responde 503 sin detalles cuando una dependencia falla o supera 2 s. No es una prueba de despliegue ni de una base real.
+
+Sin credenciales Plivo, el OTP de desarrollo se registra en logs: **no usarlo en una demo accesible al público**. `PAYMENT_GATEWAY=stub` evita pagos reales. Dominio de API y origen CORS se configuran por entorno. No ejecutar `prisma migrate dev` en producción.

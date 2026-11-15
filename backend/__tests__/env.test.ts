@@ -159,6 +159,8 @@ describe('parseEnv — service env vars T10 (REQ-008)', () => {
     expect(() =>
       parseEnv({
         NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+        CORS_ORIGIN: 'https://app.example.invalid',
         BETTER_AUTH_SECRET: VALID_SECRET,
         BETTER_AUTH_URL: VALID_URL,
       }),
@@ -311,6 +313,8 @@ describe('parseEnv — payment env vars T2 (cambio-006)', () => {
     expect(() =>
       parseEnv({
         NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+        CORS_ORIGIN: 'https://app.example.invalid',
         REDIS_URL: 'redis://localhost:6379',
         BETTER_AUTH_SECRET: VALID_SECRET,
         BETTER_AUTH_URL: VALID_URL,
@@ -348,6 +352,8 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
   it('accepts valid MP env in production with all MP vars present', () => {
     const env = parseEnv({
       NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+      CORS_ORIGIN: 'https://app.example.invalid',
       REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
@@ -366,6 +372,8 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
     expect(() =>
       parseEnv({
         NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+        CORS_ORIGIN: 'https://app.example.invalid',
         REDIS_URL: 'redis://localhost:6379',
         BETTER_AUTH_SECRET: VALID_SECRET,
         BETTER_AUTH_URL: VALID_URL,
@@ -404,6 +412,8 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
   it('sets MP_SANDBOX to false in production when explicitly provided', () => {
     const env = parseEnv({
       NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+      CORS_ORIGIN: 'https://app.example.invalid',
       REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
@@ -417,6 +427,8 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
     expect(() =>
       parseEnv({
         NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+        CORS_ORIGIN: 'https://app.example.invalid',
         REDIS_URL: 'redis://localhost:6379',
         BETTER_AUTH_SECRET: VALID_SECRET,
         BETTER_AUTH_URL: VALID_URL,

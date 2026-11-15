@@ -73,6 +73,13 @@ export function parseEnv(
   if (withSandboxDefault.MP_SANDBOX === undefined) {
     withSandboxDefault.MP_SANDBOX = nodeEnv !== 'production' ? 'true' : 'false';
   }
+  if (nodeEnv === 'production') {
+    for (const name of ['DATABASE_URL', 'CORS_ORIGIN'] as const) {
+      if (!input[name]?.trim()) {
+        throw new Error(`${name} is required in production`);
+      }
+    }
+  }
   const parsed = envSchema.parse(withSandboxDefault);
 
   // REDIS_URL is required in non-test environments
