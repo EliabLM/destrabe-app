@@ -1,0 +1,7 @@
+# DES-02b — Propuesta: invitación de operador
+
+Sustituye exclusivamente el onboarding histórico de operador basado en un rol seleccionado en UI. El listado propio DES-02a (PR #4) no cambia. El primer ADMIN se habilitará fuera de la app mediante el procedimiento **propuesto** en `docs/runbooks/DES-02b-admin-bootstrap.md`, sujeto a aprobación humana; no se crea uno en este PR.
+
+El ADMIN autenticado emite una invitación al teléfono E.164 exacto por `POST /api/admin/operator-invitations`. Recibe una única vez el token por respuesta no cacheable; lo entrega por un canal seguro externo elegido y gestionado por humanos (no SMS automático ni panel). El destinatario verifica OTP, inicia sesión como CLIENT y, desde ClientStack, introduce el token. El servidor consume la invitación una sola vez y promueve CLIENT→OPERATOR; la app consulta `/api/me` antes de mostrar el formulario de vehículo y conserva la sesión. Sin invitación permanece CLIENT. Si la red falla después del consumo, puede refrescar `/api/me` sin reutilizar el token. No hay acceso a datos reales ni despliegue.
+
+Limitaciones: se necesita ADMIN humano preaprovisionado; entrega manual del token con riesgo operacional; sin push/SMS ni dispositivo móvil verificado. La auditoría persistente registra actor, instante, acción y motivo genérico, sin teléfono ni secreto; el teléfono de destino sí queda en la invitación según contrato. Retención/borrado de auditoría no se automatizan.

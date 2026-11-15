@@ -54,6 +54,7 @@ export const auth = betterAuth({
         type: 'string',
         required: true,
         defaultValue: 'CLIENT',
+        input: false, // nunca aceptarlo en sign-up/update-user público
       },
     },
   },
