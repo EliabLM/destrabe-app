@@ -10,13 +10,34 @@ Red → Green → Refactor. Cada pieza de código nace de un test que la justifi
 
 ## Suites separadas (backend)
 
-| Suite | Comando            | Requiere DB  | Config                | Alcance                                                              |
-| ----- | ------------------ | ------------ | --------------------- | -------------------------------------------------------------------- |
-| unit  | `npm test`         | No           | `vitest.config.ts`    | schemas Zod, env, middleware, routes (sin tocar Postgres)            |
-| db    | `npm run test:db`  | Sí (`db:up`) | `vitest.db.config.ts` | relaciones Prisma, cascade, enum constraints (fileParallelism=false) |
-| all   | `npm run test:all` | Sí           | ambos                 | unit + db                                                            |
+| Suite | Comando            | Requiere DB           | Config                | Alcance                                                              |
+| ----- | ------------------ | --------------------- | --------------------- | -------------------------------------------------------------------- |
+| unit  | `npm test`         | No                    | `vitest.config.ts`    | schemas Zod, env, middleware, routes (sin tocar Postgres)            |
+| db    | `npm run test:db`  | Sí (Postgres/PostGIS) | `vitest.db.config.ts` | relaciones Prisma, cascade, enum constraints (fileParallelism=false) |
+| all   | `npm run test:all` | Sí (Postgres/PostGIS) | ambos                 | unit + db                                                            |
 
 Helper de tests DB: `backend/__tests__/db/helpers.ts` — `prisma` + `resetDb()` (TRUNCATE todas las tablas CASCADE, en una sola sentencia para evitar deadlocks).
+
+## CI de pull requests a `main`
+
+`.github/workflows/ci.yml` usa dos jobs independientes en GitHub-hosted `ubuntu-latest` con Node 20 y `npm ci`. No usa secretos, servicios de producción ni compila binarios móviles.
+
+| Job            | Comandos (en orden)                                                                                                                                                                                                                                        | Qué comprueba                                                                                                                                                                         |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Checks rápidos | `npm ci`; `npm run build -w @destrabe/shared`; `npx prisma generate --schema=backend/prisma/schema.prisma`; `npm run ts:check -w @destrabe/app`; `npm run build -w @destrabe/backend`; `npm test`; `npm run lint`; `npm run format:check`; `npm run build` | Lock reproducible, tipos de app/backend/shared, suite Vitest no-DB, ESLint y Prettier. El build raíz ejecuta los `build` existentes (shared y backend); NO hace build nativo de Expo. |
+| Contratos DB   | `npm ci`; build de shared; generate de Prisma; `npx prisma migrate deploy --schema=backend/prisma/schema.prisma`; `npm run test:db`                                                                                                                        | PostGIS/PostgreSQL 16 y Redis 7 aislados, healthchecks, migraciones existentes y suite DB secuencial. `test:db` no admite cero tests (`--passWithNoTests` eliminado).                 |
+
+En CI, `DATABASE_URL` apunta exclusivamente al contenedor temporal `destrabe_ci` y `REDIS_URL` al Redis temporal; `NODE_ENV=test` y `PAYMENT_GATEWAY=stub`. Los tests de DB limpian tablas: **nunca** apuntarlos a producción. En local solo ejecutar DB con Postgres/PostGIS y Redis de pruebas accesibles, URL explícita y migraciones aplicadas; esta VM no dispone de Docker/DB local para validar esa suite, cuya evidencia debe venir del job remoto.
+
+### Matriz de contratos efectivamente ejercitados
+
+| Contrato              | Evidencia automatizada                                                                                                                                                                                                                                                        | Límite                                                                                        |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| OTP y sesión móvil    | `auth.mobile.contract.test.ts` prueba HTTP con Bearer (OTP válido/inválido, `/api/me`, ruta protegida y revocación); `auth.mobile.store.test.ts` prueba rehidratación y borrado del token. `db/auth.otp.flow.test.ts` prueba cookie/OTP persistidos con Better Auth y Prisma. | SMS Plivo reemplazado por mock; no se prueba SMS real ni transporte en dispositivo.           |
+| Servicio y cotización | `db/services.lifecycle.test.ts` prueba roles, FSM, aislamiento y búsqueda PostGIS; `db/quotes.lifecycle.test.ts` prueba cotización, aceptación y Payment pendiente.                                                                                                           | Cola de expiración mockeada: no prueba worker Redis ni expiración temporal real.              |
+| Pago                  | `db/payments.lifecycle.test.ts` prueba iniciación con gateway stub, autenticación webhook, idempotencia, estados y bloqueo de COMPLETED sin pago confirmado.                                                                                                                  | No conecta con MercadoPago sandbox externo, redirección real, webhook público ni dinero real. |
+
+No hay E2E en emulador/dispositivo ni ejecución real de SMS o pasarela. Los checks de tipos no sustituyen Jest/Expo ni verifican interfaz móvil visual. `npm test` excluye `backend/__tests__/db/**`; `npm run test:db` incluye exclusivamente esos archivos y falla si no descubre pruebas. El umbral de cobertura indicado abajo solo se evalúa al ejecutar `npm test -- --coverage`, no en CI.
 
 ## Runners por dominio
 
@@ -33,7 +54,7 @@ Vitest se eligió por soporte nativo de TS, watch rápido y ESM. RN usará Jest 
 - Umbral mínimo: 80% en lines, branches, functions y statements (global backend+shared).
 - Config: `vitest.config.ts` raíz. `include: backend/src/**/*.ts`, `shared/src/**/*.ts`.
 - Exclusiones de cobertura: barrels (`**/index.ts`), `backend/src/server.ts` (entry de arranque), `backend/src/lib/prisma.ts` (placeholder).
-- Estado actual: 100% (cambio-001-foundation).
+- Estado histórico de foundation: 100% en cambio-001; no representa la cobertura actual de todos los dominios.
 
 ## Convenciones
 

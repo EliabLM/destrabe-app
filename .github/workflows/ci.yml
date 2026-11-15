@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks rápidos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @destrabe/shared
+      - run: npx prisma generate --schema=backend/prisma/schema.prisma
+      - run: npm run ts:check -w @destrabe/app
+      - run: npm run build -w @destrabe/backend
+      - run: npm test
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run build
+
+  db:
+    name: Contratos DB
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://destrabe_ci:ci_only_password@localhost:5432/destrabe_ci?schema=public
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+      PAYMENT_GATEWAY: stub
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: destrabe_ci
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: destrabe_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U destrabe_ci -d destrabe_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @destrabe/shared
+      - run: npx prisma generate --schema=backend/prisma/schema.prisma
+      - run: npx prisma migrate deploy --schema=backend/prisma/schema.prisma
+      - run: npm run test:db
