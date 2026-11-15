@@ -23,7 +23,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      authStore.getState().logout();
+      void authStore.getState().clearLocalSession();
     }
     return Promise.reject(error);
   },

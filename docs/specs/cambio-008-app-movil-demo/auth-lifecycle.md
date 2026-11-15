@@ -11,7 +11,7 @@
 
 ### REQ-AUTH-011: `GET /api/me` — Hidratación de sesión compuesta
 
-`requireAuth` (Bearer token). Devuelve respuesta compuesta: `{ user: { id, phone, role }, clientProfile?: ClientProfile, operatorProfile?: OperatorProfile }`. Busca `ClientProfile` y `OperatorProfile` por `userId === req.user.id`. Si no existe ninguno de los dos perfiles, los campos opcionales se omiten (no null explícito). Sin sesión válida → 401.
+`requireAuth` (cookie o Bearer firmado mediante plugin Better Auth). Devuelve respuesta compuesta: `{ user: { id, phoneNumber, role, ... }, clientProfile?: ClientProfile, operatorProfile?: OperatorProfile }`. Busca `ClientProfile` y `OperatorProfile` por `userId === req.user.id`. Si no existe ninguno de los dos perfiles, los campos opcionales se omiten (no null explícito). Sin sesión válida → 401.
 
 **Justificación de ubicación en auth-lifecycle:** Este endpoint es la contraparte server-side de la hidratación de sesión del cliente móvil. La app lo invoca inmediatamente después del verify OTP o al reabrir la app para reconstruir el estado local (stores Zustand). No es un CRUD de perfil — es la extensión del `GET /api/auth/get-session` de Better Auth con los perfiles asociados.
 
@@ -48,4 +48,6 @@ Escenario: Bearer expirado → 401
 
 ---
 
-**Cobertura:** REQ-AUTH-011 unit + db smoke (supertest con Bearer). **Next:** etapa `design`.
+**Contrato vigente (DES-01):** `POST /api/auth/phone-number/send-otp` y `POST /api/auth/phone-number/verify` (`{ phoneNumber, code }`). Verify devuelve `{ status: true, token, user }`; la app debe guardar el header firmado `set-auth-token`, no el `token` del body, y enviarlo como Bearer en `/api/me` y recursos protegidos. `POST /api/auth/sign-out` con Bearer revoca la sesión del servidor. En dispositivos no depender de cookies para persistencia. La spec inicial cambio-003 contenía `/phone/send-otp`, `/phone/verify-otp` y `/api/auth/session`; son rutas obsoletas respecto del plugin instalado.
+
+**Evidencia y límite:** prueba de contrato HTTP con Axios móvil + Express/Better Auth reales y adaptador de memoria, Prisma/Plivo/cola reemplazados en el borde (`backend/__tests__/auth.mobile.contract.test.ts`); cubre OTP válido/inválido, `/api/me`, recurso protegido, ausencia, expiración y revocación. Test de store separado comprueba hidratación y limpieza. No se ha probado el flujo con Postgres/Redis, SMS ni Expo Dev Build en dispositivo: esto no es E2E móvil ni `test:db`.

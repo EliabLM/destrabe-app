@@ -1,6 +1,8 @@
 import { create } from 'zustand';
-import type { AuthUser } from '@destrabe/shared';
+import { UserRole, type AuthUser } from '@destrabe/shared';
 import { secureStorage } from '../lib/secureStorage';
+import { getMe } from '../lib/apiMe';
+import { otpSignOut } from '../lib/apiAuth';
 
 export interface AuthState {
   user: AuthUser | null;
@@ -11,12 +13,13 @@ export interface AuthState {
   profileReady: boolean;
   login: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
+  clearLocalSession: () => Promise<void>;
   hydrate: () => Promise<void>;
   setAuthToken: (token: string | null) => void;
   setUser: (user: AuthUser | null) => void;
 }
 
-export const authStore = create<AuthState>((set, _get) => ({
+export const authStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   role: null,
@@ -32,6 +35,13 @@ export const authStore = create<AuthState>((set, _get) => ({
   },
 
   logout: async () => {
+    try {
+      if (get().token) await otpSignOut();
+    } finally {
+      await get().clearLocalSession();
+    }
+  },
+  clearLocalSession: async () => {
     await secureStorage.clearAll();
     set({
       token: null,
@@ -45,7 +55,19 @@ export const authStore = create<AuthState>((set, _get) => ({
   hydrate: async () => {
     const token = await secureStorage.getToken();
     if (token) {
-      set({ token, hydrated: true });
+      set({ token });
+      try {
+        const { user, clientProfile, operatorProfile } = await getMe();
+        const role = user.role as UserRole;
+        set({
+          user: { id: user.id, phone: user.phoneNumber, role },
+          role,
+          profileReady: role === UserRole.CLIENT || Boolean(clientProfile || operatorProfile),
+        });
+      } catch {
+        await get().clearLocalSession();
+      }
+      set({ hydrated: true });
     } else {
       set({ hydrated: true });
     }

@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { phoneNumber } from 'better-auth/plugins';
+import { bearer, phoneNumber } from 'better-auth/plugins';
 import { toNodeHandler } from 'better-auth/node';
 import { prisma } from './prisma';
 import { env } from './env';
@@ -33,6 +33,7 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   plugins: [
+    bearer(),
     phoneNumber({
       sendOTP: ({ phoneNumber, code }) => sendOtp(phoneNumber, code),
       otpLength: 6,

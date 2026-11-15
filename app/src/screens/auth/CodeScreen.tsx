@@ -36,22 +36,18 @@ export default function CodeScreen({ route }: Props) {
       await uiStore.getState().withLoading('otpVerify', async () => {
         const res = await otpVerify(phoneNumber, trimmed);
 
-        // Map verify response to AuthUser shape
-        const user = {
-          id: res.user.id,
-          phone: res.user.phoneNumber ?? phoneNumber,
-          role: res.user.role as UserRole,
-        };
-
-        // Persist token + user in authStore
-        await authStore.getState().login(res.token, user);
-
-        // Fetch full profile to drive navigation
+        // Usar el Bearer para validar /api/me antes de persistir o navegar.
+        authStore.getState().setAuthToken(res.token);
         try {
-          await getMe();
+          const me = await getMe();
+          await authStore.getState().login(res.token, {
+            id: me.user.id,
+            phone: me.user.phoneNumber,
+            role: me.user.role as UserRole,
+          });
         } catch {
-          // /api/me may fail if the token is fresh; ignore — RootStack
-          // will still show correct navigator based on user.role.
+          await authStore.getState().clearLocalSession();
+          throw new Error('No se pudo validar la sesión. Inténtalo de nuevo.');
         }
       });
     } catch (err: unknown) {

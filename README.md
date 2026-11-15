@@ -80,16 +80,18 @@ Health check: `GET http://localhost:3000/health` → `{ "status": "ok" }`.
 
 ## Autenticación (OTP teléfono)
 
-Auth centralizada en Better Auth (ADR-003), montada bajo `/api/auth` con `prismaAdapter` (Postgres) + plugin `phoneNumber` + Plivo (SMS en prod, log en dev). Sesión JWT en cookies firmadas.
+Auth centralizada en Better Auth (ADR-003), montada bajo `/api/auth` con `prismaAdapter` (Postgres) + plugins `phoneNumber` y `bearer`. La verificación crea una sesión persistida: el servidor devuelve cookie firmada y el header `set-auth-token` (token firmado). La app móvil guarda ese header en SecureStore y lo envía como `Authorization: Bearer …`; no utiliza el `token` sin firma del JSON. Plivo envía SMS en producción y el modo dev registra el OTP (no usar números reales en pruebas).
 
 ### Endpoints
 
 | Método | Ruta                              | Body / Efecto                                                      |
 | ------ | --------------------------------- | ------------------------------------------------------------------ |
 | POST   | `/api/auth/phone-number/send-otp` | `{ phoneNumber }` → envía código SMS (o log en dev)                |
-| POST   | `/api/auth/phone-number/verify`   | `{ phoneNumber, code }` → crea sesión, `Set-Cookie: session_token` |
+| POST   | `/api/auth/phone-number/verify`   | `{ phoneNumber, code }` → `{ status, token, user }`, cookie de sesión + header `set-auth-token` firmado |
 | GET    | `/api/auth/get-session`           | `{ session, user }` o `null`                                       |
-| POST   | `/api/auth/sign-out`              | borra la cookie de sesión (`Max-Age=0`)                            |
+| POST   | `/api/auth/sign-out`              | revoca la sesión enviada por cookie o Bearer y borra la cookie     |
+
+`GET /api/me` y las rutas protegidas usan `requireAuth` → `auth.api.getSession` (cookie o Bearer con plugin); sin sesión o tras logout/expiración responden 401. Al reabrir la app se valida `/api/me` antes de reconstruir usuario/perfil; un 401 borra el token local. Cobertura de contrato sin infraestructura: `backend/__tests__/auth.mobile.contract.test.ts` ejecuta el handler Better Auth, router Express, middleware y Axios de la app con adaptador de memoria de Better Auth y bordes Prisma/Plivo/cola simulados. No prueba Postgres/Redis, envío SMS ni ejecución en dispositivo; `npm run test:db` sigue requiriendo esos servicios. La spec histórica de cambio-003 describe rutas antiguas; la corrección vigente se documenta en `docs/specs/cambio-008-app-movil-demo/auth-lifecycle.md`.
 
 > Roles (`UserRole`: `CLIENT` por defecto, `OPERATOR`) se enforcean con `requireAuth` / `requireRole` (`backend/src/middleware/auth.ts`). Detalles y desviaciones de la spec en `docs/adr/ADR-003-better-auth.md`.
 
