@@ -23,7 +23,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      void authStore.getState().clearLocalSession();
+      const current = authStore.getState();
+      // A late 401 from a previous session must not log out a newer login.
+      if (
+        current.token &&
+        error.config?.headers?.Authorization === `Bearer ${current.token}`
+      ) {
+        void current.clearLocalSession();
+      }
     }
     return Promise.reject(error);
   },

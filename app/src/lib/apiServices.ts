@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { ListServicesResponse } from '@destrabe/shared';
 import type { ServiceItem } from '../stores/servicesStore';
 
 export interface CreateServiceInput {
@@ -24,8 +25,12 @@ export interface CreateServiceResponse {
  * List my services.
  * GET /services
  */
-export async function listMyServices(): Promise<ServiceItem[]> {
-  const res = await api.get<ServiceItem[]>('/services');
+export async function listMyServices(
+  cursor?: string,
+): Promise<ListServicesResponse> {
+  const res = await api.get<ListServicesResponse>('/services', {
+    params: cursor ? { cursor } : {},
+  });
   return res.data;
 }
 
