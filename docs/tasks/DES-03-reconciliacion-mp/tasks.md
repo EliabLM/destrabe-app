@@ -1,0 +1,24 @@
+# DES-03 — Matriz TDD propuesta (no ejecutada)
+
+**Estado:** especificación de pruebas futuras; este PR es solo documentación. [Spec](../../specs/DES-03-reconciliacion-mp/spec.md) · [Diseño](../../designs/DES-03-reconciliacion-mp/design.md). Implementación RED → GREEN → refactor solo después de autorización de datos y seguridad. No tocar rutas DES-02.
+
+| ID | RED: fixture/escenario | GREEN: expectativa verificable | Capa |
+|---|---|---|---|
+| T01 | `Preference.create` retorna `pref-A`; webhook firmado `?data.id=pay-B`, `body.data.id=pay-B`, recurso `Payment.get(pay-B)` aprobado con `external_reference` local, monto/moneda/collector correctos | `pref-A` queda en `mpPreferenceId`, `pay-B` en `mpActualPaymentId`; CONFIRMED solo tras GET; el reverse-lookup antiguo falla con `pref-A` | SDK real con transporte HTTP simulado + DB aislada |
+| T02 | body `status=approved` o `action=payment.approved`, recurso GET `pending`; `action=payment.created/updated` con GET aprobado | Solo status del GET gobierna; primero PENDING, segundo CONFIRMED si verificaciones pasan | contrato |
+| T03 | firma calculada sobre query `data.id=pay-B`, body ID `pay-C`; query ausente/múltiple; header inválido o timestamp fuera de tolerancia | 400/401 sin GET ni BD; query prevalece para HMAC, divergencia no se acepta | SDK **real** `WebhookSignatureValidator`, firmas locales sanas |
+| T04 | tópico `merchant_order`, `orders`, `payment` sin GET; firma válida pero Payment.get 404/timeout/5xx | Ninguno confirma; tópico ajeno ignorado, GET falla con respuesta reintentable o cola durable | contrato con transporte simulado |
+| T05 | GET id diferente, `external_reference` ajeno/ausente, importe o moneda distinta, `collector_id` ajeno/ausente, `preference_id` discordante/no comprobable | Fallar cerrado, dejar PENDING y auditar discrepancia sin registrar datos sensibles | tabla de casos + DB |
+| T06 | dos init simultáneos, replay init, preferencia creada pero falla persistencia; webhook llega antes de commit | un intento activo, preferencia estable, sin reemplazo silencioso, pendiente recuperable | DB aislada + API fake |
+| T07 | dos webhooks GET approved simultáneos tras PENDING; `created` demorado tras `updated`; webhook duplicado | una transición condicional; único ID remoto, mismo terminal y sin nuevo cálculo/overwrite | DB aislada concurrencia |
+| T08 | entre lectura PENDING y escritura otro proceso marca FAILED/CONFIRMED | `updateMany` afecta 0 y relee terminal, jamás lo sobrescribe; reproducir fallo del `update({where:{id}})` actual | DB aislada, barreras deterministas |
+| T09 | dos recursos remotos comparten external_reference, o ID real ya asociado a otro Payment | no reemplazo de ID vigente/terminal; conflicto a revisión | DB con índices únicos |
+| T10 | legado `mpPaymentId=stub-*`, `pref-A`, ID real ambiguo; init en vuelo con proceso viejo | solo preferencia demostrada migra; ambiguo en cuarentena, rollback conserva dato y estado | migración DB aislada |
+| T11 | GET `rejected`, `cancelled`, `refunded` o estado desconocido y otro intento abierto | sin CONFIRMED; transición FAILED/refund solo según decisión producto; desconocido no confirma | contrato |
+| T12 | webhook firmado de prueba válido con credenciales de prueba, creación de preferencia y pago de prueba | correlación extremo a extremo, IDs distintos y atributos concordantes; no habilitar split | **sandbox externo, pendiente autorización** |
+
+## Entornos y evidencia exigida
+
+- Offline: `mercadopago@3.2.0` instalado del lockfile, validador real (HMAC sintético con secreto de fixture, timestamp en milisegundos según SDK), `Payment.get` real con transporte HTTP interceptado **sin llamar al proveedor**, `Preference.create` real con respuesta simulada; fixtures saneados sin tokens, usuarios ni pagos reales. BD Postgres aislada para tests de índices y carreras; sin Docker/sudo en esta VM, usar CI con servicios o instancia efímera autorizada. Registrar RED antes del código y GREEN después sobre el mismo caso. Mocks de clases SDK (`vi.mock('mercadopago')`) no bastan para probar firma/query o forma de GET.
+- Sandbox real: pedir al responsable autorización explícita, credenciales **de prueba** por canal seguro, identidad de cuenta beneficiaria y moneda definidas, URL de pruebas y registro de notificaciones en panel; probar solo cobros de prueba con vendedor/comprador de prueba y documentar IDs redactados, estado GET y checks de HEAD exacto. No pedir secretos por chat, no usar cuentas reales, no afirmar prueba externa hasta ejecutar. El panel/simulador de webhooks prueba entrega/firma pero **no prueba necesariamente liquidación/split**.
+- Gate CI del PR documental: `git diff --check`, enlaces oficiales comprobados y `gh pr checks` del SHA exacto; build/lint/test locales y `npm run test:db` no requeridos para este PR sin código. CI habitual se observa en GitHub sin afirmar ejecución local.
