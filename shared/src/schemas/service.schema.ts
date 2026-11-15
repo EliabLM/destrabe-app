@@ -56,6 +56,49 @@ export const createQuoteSchema = z.object({
  */
 export const acceptQuoteSchema = z.object({});
 
+// GET /services: strict query prevents client-controlled identity selectors.
+export const listServicesQuerySchema = z
+  .object({
+    limit: z
+      .string()
+      .regex(/^[1-9][0-9]*$/)
+      .transform(Number)
+      .pipe(z.number().int().min(1).max(100))
+      .default('20'),
+    cursor: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{1,512}$/)
+      .optional(),
+  })
+  .strict();
+
+export const serviceListItemSchema = z
+  .object({
+    id: z.string(),
+    type: serviceTypeSchema,
+    status: serviceStatusSchema,
+    originLat: z.number(),
+    originLng: z.number(),
+    destLat: z.number().nullable(),
+    destLng: z.number().nullable(),
+    description: z.string().nullable(),
+    photoUrl: z.string().nullable(),
+    expiresAt: z.string().datetime(),
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+
+export const listServicesResponseSchema = z
+  .object({
+    items: z.array(serviceListItemSchema),
+    nextCursor: z.string().nullable(),
+  })
+  .strict();
+
+export type ListServicesQuery = z.infer<typeof listServicesQuerySchema>;
+export type ServiceListItem = z.infer<typeof serviceListItemSchema>;
+export type ListServicesResponse = z.infer<typeof listServicesResponseSchema>;
+
 // ─── Inferred types ──────────────────────────────────────────────────────────
 
 export type CreateServiceInput = z.infer<typeof createServiceSchema>;

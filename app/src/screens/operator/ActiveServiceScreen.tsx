@@ -23,7 +23,7 @@ export default function ActiveServiceScreen() {
       // In MVP this would be a dedicated endpoint.
       const { listMyServices } = await import('../../lib/apiServices');
       const all = await listMyServices();
-      const active = all.find((s) => s.status === 'ACTIVE') ?? null;
+      const active = all.items.find((s) => s.status === 'ACTIVE') ?? null;
       setService(active);
     } catch {
       setService(null);

@@ -7,6 +7,7 @@ import type { ValidatedRequest } from '../middleware/validate';
 import {
   createServiceSchema,
   nearbyServicesQuerySchema,
+  listServicesQuerySchema,
   updateServiceStatusSchema,
 } from '@destrabe/shared';
 import { prisma } from '../lib/prisma';
@@ -24,8 +25,9 @@ type ServiceRequest = AuthedRequest & ValidatedRequest;
 /**
  * Services router — cambio-004 / REQ-002, REQ-003, REQ-004, REQ-005.
  *
- * 4 endpoints bajo requireAuth:
+ * 5 endpoints bajo requireAuth:
  *   POST  /services              — create (CLIENT role)
+ *   GET   /services              — own paginated list (CLIENT role)
  *   GET   /services/nearby       — radius search (OPERATOR role, PostGIS ST_DWithin)
  *   GET   /services/:id          — get by id (owner full / operator public / other 404)
  *   PATCH /services/:id/status   — update status (owner, FSM assertTransition)
@@ -99,6 +101,107 @@ servicesRouter.post(
         type: service.type,
         originLat: service.originLat,
         originLng: service.originLng,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ─── GET /services — own, keyset-paginated list (CLIENT) ────────────────────
+// Cursor is an opaque, canonical base64url tuple; it never carries identity.
+function decodeListCursor(
+  value: string,
+): { createdAt: Date; id: string } | null {
+  try {
+    const decoded = Buffer.from(value, 'base64url');
+    if (decoded.toString('base64url') !== value) return null;
+    const tuple: unknown = JSON.parse(decoded.toString('utf8'));
+    if (
+      !Array.isArray(tuple) ||
+      tuple.length !== 2 ||
+      typeof tuple[0] !== 'string' ||
+      typeof tuple[1] !== 'string' ||
+      tuple[1].length < 1 ||
+      tuple[1].length > 128
+    )
+      return null;
+    const date = new Date(tuple[0]);
+    if (Number.isNaN(date.getTime()) || date.toISOString() !== tuple[0])
+      return null;
+    return { createdAt: date, id: tuple[1] };
+  } catch {
+    return null;
+  }
+}
+
+servicesRouter.get(
+  '/',
+  requireRole(UserRole.CLIENT),
+  validate(listServicesQuerySchema, 'query'),
+  async (req, res, next) => {
+    try {
+      const sr = req as ServiceRequest;
+      const { limit, cursor } = sr.validated!['query'] as {
+        limit: number;
+        cursor?: string;
+      };
+      const position = cursor ? decodeListCursor(cursor) : null;
+      if (cursor && !position) {
+        return res
+          .status(400)
+          .json({ error: 'Validation failed', code: 'VALIDATION_ERROR' });
+      }
+      // Identity comes only from requireAuth, never from a client parameter.
+      const profile = await prisma.clientProfile.findUnique({
+        where: { userId: sr.user!.id },
+        select: { id: true },
+      });
+      if (!profile) return res.json({ items: [], nextCursor: null });
+
+      const rows = await prisma.service.findMany({
+        where: {
+          clientProfileId: profile.id,
+          ...(position
+            ? {
+                OR: [
+                  { createdAt: { lt: position.createdAt } },
+                  { createdAt: position.createdAt, id: { lt: position.id } },
+                ],
+              }
+            : {}),
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          originLat: true,
+          originLng: true,
+          destLat: true,
+          destLng: true,
+          description: true,
+          photoUrl: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+      });
+      const hasMore = rows.length > limit;
+      const page = rows.slice(0, limit);
+      const last = page.at(-1);
+      return res.json({
+        items: page.map((row) => ({
+          ...row,
+          expiresAt: row.expiresAt.toISOString(),
+          createdAt: row.createdAt.toISOString(),
+        })),
+        nextCursor:
+          hasMore && last
+            ? Buffer.from(
+                JSON.stringify([last.createdAt.toISOString(), last.id]),
+              ).toString('base64url')
+            : null,
       });
     } catch (err) {
       next(err);

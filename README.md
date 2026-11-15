@@ -101,12 +101,13 @@ Flujo de solicitud de grúa con máquina de estados finita (FSM) y timer de expi
 
 ### Endpoints
 
-| Método | Ruta                   | Rol      | Efecto                                                                      |
-| ------ | ---------------------- | -------- | --------------------------------------------------------------------------- |
-| POST   | `/services`            | CLIENT   | Crea `Service` `PENDING` + `ClientProfile` (lazy upsert) + enqueue expiry   |
-| GET    | `/services/nearby`     | OPERATOR | Búsqueda geoespacial PostGIS `ST_DWithin` — `PENDING` no expirados en radio |
-| GET    | `/services/:id`        | auth     | Dueño: completo · Operador: público · Ajeno: 404                            |
-| PATCH  | `/services/:id/status` | auth     | Transición FSM (`assertTransition`); ilegal → 409 `INVALID_TRANSITION`      |
+| Método | Ruta                   | Rol      | Efecto                                                                                                                   |
+| ------ | ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| POST   | `/services`            | CLIENT   | Crea `Service` `PENDING` + `ClientProfile` (lazy upsert) + enqueue expiry                                                |
+| GET    | `/services`            | CLIENT   | Solicitudes propias paginadas (`limit` 1–100, default 20; cursor opaco); `{items,nextCursor}`. Sin perfil: página vacía. |
+| GET    | `/services/nearby`     | OPERATOR | Búsqueda geoespacial PostGIS `ST_DWithin` — `PENDING` no expirados en radio                                              |
+| GET    | `/services/:id`        | auth     | Dueño: completo · Operador: público · Ajeno: 404                                                                         |
+| PATCH  | `/services/:id/status` | auth     | Transición FSM (`assertTransition`); ilegal → 409 `INVALID_TRANSITION`                                                   |
 
 ### Máquina de estados (`serviceMachine`)
 
