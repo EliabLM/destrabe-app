@@ -14,7 +14,8 @@ import {
  *
  * - `"off"` / `{"mode":"off"}`: apagado para todos.
  * - `{"mode":"allowlist","users":[...]}`: solo para esos usuarios (id de
- *   usuario o teléfono E.164).
+ *   usuario o teléfono E.164). Una entrada de solo dígitos (10-15) se rechaza
+ *   por ser casi seguro un teléfono sin `+`.
  * - `"all"` / `{"mode":"all"}`: liberado para todos.
  *
  * Un flag que no aparece queda apagado (falla cerrado). JSON inválido, modo
@@ -32,6 +33,8 @@ export interface FlagRule {
 export type FeatureFlagsConfig = Partial<Record<FeatureFlag, FlagRule>>;
 
 const E164 = /^\+[1-9]\d{7,14}$/;
+/** Solo dígitos y largo de teléfono: casi seguro un E.164 sin el `+`. */
+const PHONE_WITHOUT_PLUS = /^\d{10,15}$/;
 
 const userEntry = z
   .string()
@@ -39,6 +42,10 @@ const userEntry = z
   .min(1, 'usuario vacío')
   .refine((v) => !v.startsWith('+') || E164.test(v), {
     message: 'teléfono no está en formato E.164 (ej. +573001234567)',
+  })
+  .refine((v) => !PHONE_WITHOUT_PLUS.test(v), {
+    message:
+      'parece un teléfono sin el + del E.164 (ej. +573001234567); los ids de usuario no son solo dígitos',
   });
 
 const ruleSchema = z.union([

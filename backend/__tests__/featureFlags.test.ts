@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FeatureFlag } from '@destrabe/shared';
 import { parseEnv } from '../src/lib/env';
 import { parseFeatureFlagsConfig } from '../src/lib/featureFlagsConfig';
+import { checkFeatureFlags } from '../src/scripts/checkFeatureFlags';
 import {
   configFlagStore,
   getEnabledFeatures,
@@ -113,6 +114,11 @@ describe('parseFeatureFlagsConfig', () => {
       /FEATURE_FLAGS inválida: pagoSimulado/,
     ],
     ['no es un objeto', '["pagoSimulado"]', /FEATURE_FLAGS inválida/],
+    [
+      'teléfono sin +',
+      '{"pagoSimulado":{"mode":"allowlist","users":["573001234567"]}}',
+      /pagoSimulado\.users\.0: parece un teléfono sin el \+/,
+    ],
   ])('falla con mensaje claro: %s', (_name, raw, msg) => {
     expect(() => parseFeatureFlagsConfig(raw)).toThrow(msg);
   });
@@ -137,5 +143,29 @@ describe('FEATURE_FLAGS en parseEnv', () => {
 
   it('ausente = todo apagado', () => {
     expect(parseEnv({ NODE_ENV: 'test' }).FEATURE_FLAGS).toEqual({});
+  });
+});
+
+describe('checkFeatureFlags (validación antes de Coolify)', () => {
+  it('acepta un JSON válido y devuelve la línea para pegar', () => {
+    const out = vi.fn();
+    expect(checkFeatureFlags('{ "pagoSimulado": "all" }', out)).toBe(true);
+    expect(out).toHaveBeenCalledWith(
+      expect.stringContaining('{"pagoSimulado":"all"}'),
+    );
+  });
+
+  it('rechaza un JSON que haría fallar el arranque', () => {
+    const out = vi.fn();
+    expect(checkFeatureFlags('{"pagoSimulado":"on"}', out)).toBe(false);
+    expect(out).toHaveBeenCalledWith(
+      expect.stringContaining('FEATURE_FLAGS inválida'),
+    );
+  });
+
+  it('sin argumento muestra el uso', () => {
+    const out = vi.fn();
+    expect(checkFeatureFlags(undefined, out)).toBe(false);
+    expect(out).toHaveBeenCalledWith(expect.stringContaining('Uso:'));
   });
 });

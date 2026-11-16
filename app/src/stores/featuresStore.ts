@@ -6,9 +6,12 @@ import { getMyFeatures } from '../lib/apiFeatures';
 /**
  * Feature flags de la sesión (issue #13). Guía: docs/runbooks/feature-flags.md.
  *
- * `load(userId)` se llama al iniciar sesión y al rehidratar: primero aplica
- * los últimos valores guardados de ese usuario y luego pide los actuales al
- * backend. Sin red se quedan los guardados; si no hay, todo apagado.
+ * `load(userId)` se llama al iniciar sesión y al rehidratar (tras un `/api/me`
+ * correcto): primero aplica los últimos valores guardados de ese usuario y
+ * luego pide los actuales al backend. Si esa petición falla, se quedan los
+ * guardados; si no hay, todo apagado. Ojo: sin red al abrir la app, `hydrate`
+ * cierra la sesión (y borra esta caché), así que la caché solo cubre el caso en
+ * que `/api/me` responde y `/api/me/features` falla.
  */
 export interface FeaturesState {
   /** Usuario cuyos flags están cargados (null = ninguno). */
@@ -52,7 +55,7 @@ export const featuresStore = create<FeaturesState>((set, get) => ({
       const cache: CachedFeatures = { userId, features };
       await secureStorage.setFeatures(JSON.stringify(cache));
     } catch {
-      // Sin red o error: se quedan los últimos valores conocidos.
+      // Error al pedirlos: se quedan los últimos valores conocidos.
     }
   },
 

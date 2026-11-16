@@ -68,10 +68,25 @@ const showNueva = useFeature('miFeature');
 return showNueva ? <BotonNuevo /> : null;
 ```
 
-Sin red, la app usa los últimos flags conocidos de ese usuario; si no hay,
-todo apagado. Ocultar en la app es solo UX: la protección real es el backend.
+La app pide los flags tras un `/api/me` correcto (al iniciar sesión o al
+reabrirla). Si `/api/me/features` falla, usa los últimos conocidos de ese
+usuario; si no hay, todo apagado. Sin red al abrir la app se cierra la sesión
+(comportamiento previo de `hydrate`), así que no hay modo offline real.
+Ocultar en la app es solo UX: la protección real es el backend.
 
 ## 3. Activarlo solo para mí (allowlist)
+
+**Valida el JSON antes de pegarlo en Coolify** (desde la raíz del repo, con
+`npm install` y `npm run build -w @destrabe/shared` hechos). Usa el mismo
+parser que el arranque del backend y devuelve el valor en una línea:
+
+```bash
+npm run flags:check -w @destrabe/backend -- '{"miFeature":{"mode":"allowlist","users":["+573001234567"]}}'
+```
+
+Si responde `FEATURE_FLAGS inválida: ...`, corrige antes de guardar. Si aun
+así un despliegue no arranca, vuelve a poner el valor anterior de la variable
+en Coolify y redespliega.
 
 En Coolify → aplicación del backend → _Environment Variables_, define
 `FEATURE_FLAGS` (JSON en una sola línea) y **redespliega**:
@@ -80,7 +95,8 @@ En Coolify → aplicación del backend → _Environment Variables_, define
 { "miFeature": { "mode": "allowlist", "users": ["+573001234567"] } }
 ```
 
-`users` acepta teléfonos E.164 (lo más cómodo) o ids de usuario. Para ver
+`users` acepta teléfonos E.164 con `+` (lo más cómodo) o ids de usuario. Un
+teléfono sin `+` (solo dígitos) se rechaza al validar. Para ver
 el cambio en la app, ciérrala y vuelve a abrirla (o vuelve a iniciar sesión).
 
 ## 4. Liberarlo para todos
@@ -106,7 +122,7 @@ en el log.
 
 Modos: `"off"`, `"all"` o `{ "mode": "off" | "allowlist" | "all", "users": [...] }`.
 JSON roto, un modo desconocido, una clave mal escrita (p. ej. `user` en vez de
-`users`) o un teléfono que no sea E.164 **hacen fallar el arranque** con un
+`users`) o un teléfono que no sea E.164 (también sin `+`) **hacen fallar el arranque** con un
 mensaje `FEATURE_FLAGS inválida: ...` que indica el campo. Si un despliegue no
 arranca tras tocar la variable, revisa ese mensaje en los logs de Coolify.
 
