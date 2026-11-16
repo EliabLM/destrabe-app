@@ -5,11 +5,7 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "destrabe",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "backgroundColor": "#1a1a2e"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.destrabe.app"
@@ -21,10 +17,11 @@
       "package": "com.destrabe.app"
     },
     "plugins": [
+      "@rnmapbox/maps",
       [
-        "@rnmapbox/maps",
+        "expo-splash-screen",
         {
-          "RNMapboxMapsDownloadToken": "$(MAPBOX_DOWNLOADS_TOKEN)"
+          "backgroundColor": "#1a1a2e"
         }
       ]
     ]

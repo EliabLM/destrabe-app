@@ -196,7 +196,7 @@ export default function ServiceDetailScreen() {
         ListEmptyComponent={
           !shouldPoll ? (
             <Text style={styles.emptyText}>Sin cotizaciones</Text>
-          ) : null
+          ) : undefined
         }
       />
     </SafeAreaView>

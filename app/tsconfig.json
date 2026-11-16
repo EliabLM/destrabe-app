@@ -16,9 +16,8 @@
     "declarationMap": false,
     "sourceMap": true,
     "types": ["react", "expo", "node"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
       "@destrabe/shared": ["../shared/src"]
     }
   },
