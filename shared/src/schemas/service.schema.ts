@@ -64,7 +64,7 @@ export const listServicesQuerySchema = z
       .regex(/^[1-9][0-9]*$/)
       .transform(Number)
       .pipe(z.number().int().min(1).max(100))
-      .default('20'),
+      .prefault('20'),
     cursor: z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,512}$/)

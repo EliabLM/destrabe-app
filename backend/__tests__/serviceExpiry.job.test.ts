@@ -30,16 +30,20 @@ vi.mock('../src/lib/notifications', () => ({
   notifyClient: notifyClientMock,
 }));
 
+// `function` (no flecha): Vitest 4 exige mocks construibles con `new`.
 vi.mock('bullmq', () => ({
-  Queue: vi.fn(() => ({ add: queueAddMock })),
-  Worker: vi.fn(() => ({
-    run: vi.fn(),
-    close: vi.fn(),
-  })),
+  Queue: vi.fn(function () {
+    return { add: queueAddMock };
+  }),
+  Worker: vi.fn(function () {
+    return { run: vi.fn(), close: vi.fn() };
+  }),
 }));
 
 vi.mock('ioredis', () => ({
-  default: vi.fn(() => ({})),
+  default: vi.fn(function () {
+    return {};
+  }),
 }));
 
 // ─── expirePendingService ────────────────────────────────────────────────────

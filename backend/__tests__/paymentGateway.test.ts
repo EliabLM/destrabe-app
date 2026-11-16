@@ -66,6 +66,12 @@ describe('StubPaymentGateway (REQ-005)', () => {
     expect(result.status).toBe('FAILED');
   });
 
+  // Express 5 deja `req.body` en `undefined` si la petición no trae cuerpo.
+  it('processWebhook returns no paymentId when payload is undefined', async () => {
+    const result = await gateway.processWebhook(undefined, AUTH_HEADERS);
+    expect(result.paymentId).toBeUndefined();
+  });
+
   it('processWebhook throws 401 when X-Webhook-Token is missing', async () => {
     await expect(
       gateway.processWebhook({ paymentId: 'pay-123', status: 'CONFIRMED' }),

@@ -273,7 +273,7 @@ servicesRouter.get(
 servicesRouter.get('/:id', async (req, res, next) => {
   try {
     const user = (req as AuthedRequest).user!;
-    const serviceId = req.params.id;
+    const serviceId = req.params.id as string;
 
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
@@ -320,7 +320,7 @@ servicesRouter.patch(
     try {
       const sr = req as ServiceRequest;
       const user = sr.user!;
-      const serviceId = req.params.id;
+      const serviceId = req.params.id as string;
       const { status: targetStatus } = sr.validated!['body'] as {
         status: ServiceStatusEnum;
       };

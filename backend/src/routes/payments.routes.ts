@@ -35,7 +35,7 @@ paymentsRouter.post(
     try {
       const sr = req as PaymentRequest;
       const user = sr.user!;
-      const paymentId = req.params.id;
+      const paymentId = req.params.id as string;
 
       const payment = await prisma.payment.findUnique({
         where: { id: paymentId },
