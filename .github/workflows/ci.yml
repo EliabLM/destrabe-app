@@ -3,9 +3,15 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
@@ -15,8 +21,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
           cache: npm
+      - run: node --version
       - run: npm ci
       - run: npm run build -w @destrabe/shared
       - run: npx prisma generate --schema=backend/prisma/schema.prisma
@@ -26,18 +33,24 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run build
+      - name: npm audit (informativo)
+        continue-on-error: true
+        run: npm audit --omit=dev
 
   db:
-    name: Contratos DB
+    name: Contratos DB, deriva y cobertura
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://destrabe_ci:ci_only_password@localhost:5432/destrabe_ci?schema=public
+      SHADOW_DATABASE_URL: postgresql://destrabe_ci:ci_only_password@localhost:5432/destrabe_shadow?schema=public
       REDIS_URL: redis://localhost:6379
       NODE_ENV: test
       PAYMENT_GATEWAY: stub
     services:
       postgres:
-        image: postgis/postgis:16-3.4
+        # Misma imagen prevista en producción (ADR-016): build multiarch de
+        # postgis/postgis 16-3.4, que también publica arm64.
+        image: imresamu/postgis:16-3.4
         env:
           POSTGRES_USER: destrabe_ci
           POSTGRES_PASSWORD: ci_only_password
@@ -62,10 +75,40 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run build -w @destrabe/shared
       - run: npx prisma generate --schema=backend/prisma/schema.prisma
+      - name: Deriva schema.prisma ↔ migraciones
+        run: |
+          echo 'CREATE DATABASE destrabe_shadow' \
+            | npx prisma db execute --url "$DATABASE_URL" --stdin
+          npx prisma migrate diff \
+            --from-migrations backend/prisma/migrations \
+            --to-schema-datamodel backend/prisma/schema.prisma \
+            --shadow-database-url "$SHADOW_DATABASE_URL" \
+            --exit-code
       - run: npx prisma migrate deploy --schema=backend/prisma/schema.prisma
-      - run: npm run test:db
+      # Unit + DB con los umbrales de vitest.config.ts: falla si se bajan.
+      - run: npm run test:coverage
+
+  docker:
+    name: Imagen Docker (Node 26)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: destrabe-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Node de la imagen es v26.x
+        run: |
+          v=$(docker run --rm destrabe-backend:ci node --version)
+          echo "node $v"
+          [[ "$v" == v26.* ]]
