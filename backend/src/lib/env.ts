@@ -56,7 +56,8 @@ const envSchema = z.object({
   SMS_LIMIT_PHONE_DAY: z.coerce.number().int().positive().default(10),
   SMS_LIMIT_IP_HOUR: z.coerce.number().int().positive().default(10),
   SMS_LIMIT_IP_DAY: z.coerce.number().int().positive().default(30),
-  SMS_DAILY_CAP: z.coerce.number().int().positive().default(50),
+  // Tope de coste: 20 SMS × hasta USD 0,38 ≈ USD 7,6/día en el peor caso.
+  SMS_DAILY_CAP: z.coerce.number().int().positive().default(20),
   // DCC-05 — Solo fuera de producción: números (coma) con OTP fijo, sin SMS.
   OTP_TEST_NUMBERS: z
     .string()

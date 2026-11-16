@@ -27,6 +27,11 @@ const DAY = 24 * HOUR;
 const RETENTION_MS = 2 * DAY;
 /** Clave arbitraria y fija del `pg_advisory_xact_lock` de los envíos. */
 const SMS_LOCK_KEY = 4_205_005;
+/**
+ * Tiempos de la transacción de conteo: `maxWait` para obtener conexión del
+ * pool y `timeout` total (incluye esperar el *advisory lock*).
+ */
+export const SMS_TX_OPTIONS = { maxWait: 5_000, timeout: 10_000 } as const;
 /** Contador usado cuando no se pudo resolver la IP del cliente. */
 export const UNKNOWN_IP = 'unknown';
 
@@ -138,6 +143,22 @@ function limitError(reason: SmsLimitReason, phone: string): APIError {
   });
 }
 
+function isTransactionTimeout(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { code?: unknown }).code === 'P2028'
+  );
+}
+
+function busyError(): APIError {
+  return new APIError('SERVICE_UNAVAILABLE', {
+    code: 'SMS_TEMPORARILY_UNAVAILABLE',
+    message:
+      'No pudimos enviar el código ahora. Inténtalo de nuevo en unos minutos.',
+  });
+}
+
 function invalidPhoneError(): APIError {
   return new APIError('BAD_REQUEST', {
     code: 'INVALID_PHONE_NUMBER',
@@ -166,19 +187,32 @@ export async function checkSmsAllowed(
 export async function reserveSmsSend(phone: string, ip: string): Promise<void> {
   if (!isColombianMobile(phone)) throw invalidPhoneError();
   const { phoneHash, ipHash } = smsHashes(phone, ip);
-  const reason = await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${SMS_LOCK_KEY})`);
-    await tx.smsSendLog.deleteMany({
-      where: { createdAt: { lt: new Date(Date.now() - RETENTION_MS) } },
-    });
-    const counts = await countSends(tx, phoneHash, ipHash);
-    const found = evaluateSmsLimits(counts, limitsFromEnv());
-    if (!found) {
-      await tx.smsSendLog.create({
-        data: { phoneHash, ipHash },
+  let reason: SmsLimitReason | null;
+  try {
+    reason = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SMS_LOCK_KEY})`;
+      await tx.smsSendLog.deleteMany({
+        where: { createdAt: { lt: new Date(Date.now() - RETENTION_MS) } },
       });
+      const counts = await countSends(tx, phoneHash, ipHash);
+      const found = evaluateSmsLimits(counts, limitsFromEnv());
+      if (!found) {
+        await tx.smsSendLog.create({
+          data: { phoneHash, ipHash },
+        });
+      }
+      return found;
+    }, SMS_TX_OPTIONS);
+  } catch (err) {
+    // Ráfaga: no se obtuvo conexión o el bloqueo a tiempo (P2028). Se responde
+    // 503 (nunca 500) y no se envía.
+    if (isTransactionTimeout(err)) {
+      console.warn(
+        `[sms] Transacción de límites agotó el tiempo; envío a ${maskPhone(phone)} bloqueado`,
+      );
+      throw busyError();
     }
-    return found;
-  });
+    throw err;
+  }
   if (reason) throw limitError(reason, phone);
 }

@@ -173,7 +173,8 @@ describe('OTP por SMS — límites persistentes (DCC-05)', () => {
   });
 
   it('por IP: 30 envíos en 24 h → 429', async () => {
-    const { app, guard } = await loadApp();
+    // Tope global por encima de los 30 envíos sembrados.
+    const { app, guard } = await loadApp({ SMS_DAILY_CAP: '100' });
     await seedSends(guard, 30, phone(99), '203.0.113.70', 2 * HOUR);
     const res = await sendOtp(app, phone(1), '203.0.113.70');
     expect(res.status).toBe(429);

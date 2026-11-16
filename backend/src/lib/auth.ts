@@ -70,6 +70,9 @@ export const auth = betterAuth({
     bearer(),
     phoneNumber({
       phoneNumberValidator: (phone) => isColombianMobile(phone),
+      // OJO: no configurar `advanced.backgroundTasks`. Con él, Better Auth no
+      // espera a `sendOTP` y los 429/503 de `reserveSmsSend` no llegarían al
+      // cliente (el código se generaría igualmente).
       sendOTP: async ({ phoneNumber, code }, ctx) => {
         if (isOtpTestNumber(phoneNumber) && ctx) {
           // Desarrollo/pruebas: código fijo, sin SMS ni consumo de cupo.

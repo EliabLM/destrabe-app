@@ -43,4 +43,13 @@ describe('normalizeClientIp', () => {
       .set('X-Forwarded-For', '203.0.113.7');
     expect(res.body.xff).toMatch(/127\.0\.0\.1|::1/);
   });
+
+  it('una X-Forwarded-For falsa desde un par que no es proxy de confianza se ignora', async () => {
+    // Solo la red de Traefik es de confianza; la conexión llega por loopback.
+    const res = await request(appWith('10.0.1.0/24'))
+      .get('/ip')
+      .set('X-Forwarded-For', '203.0.113.99');
+    expect(res.body.xff).not.toBe('203.0.113.99');
+    expect(res.body.xff).toMatch(/127\.0\.0\.1|::1/);
+  });
 });

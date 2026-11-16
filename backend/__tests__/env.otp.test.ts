@@ -21,7 +21,7 @@ describe('env — límites de SMS y OTP de pruebas (DCC-05)', () => {
     expect(env.SMS_LIMIT_PHONE_DAY).toBe(10);
     expect(env.SMS_LIMIT_IP_HOUR).toBe(10);
     expect(env.SMS_LIMIT_IP_DAY).toBe(30);
-    expect(env.SMS_DAILY_CAP).toBe(50);
+    expect(env.SMS_DAILY_CAP).toBe(20);
     expect(env.TRUST_PROXY).toBe('loopback,uniquelocal');
     expect(env.OTP_TEST_NUMBERS).toEqual([]);
     expect(env.OTP_TEST_CODE).toBeUndefined();
