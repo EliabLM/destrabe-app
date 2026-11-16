@@ -35,24 +35,33 @@ export const longitudeSchema = z
   .min(LONGITUDE_MIN)
   .max(LONGITUDE_MAX);
 
-/** Variantes para query string (`?lat=4.65`). */
-export const latitudeQuerySchema = z.coerce
-  .number()
-  .finite()
-  .min(LATITUDE_MIN)
-  .max(LATITUDE_MAX);
+/**
+ * Número en query string (`?lat=4.65`). Rechaza el valor vacío, que
+ * `z.coerce.number()` convertiría en 0.
+ */
+const queryNumber = (min: number, max: number) =>
+  z.string().trim().min(1).pipe(z.coerce.number().finite().min(min).max(max));
 
-export const longitudeQuerySchema = z.coerce
-  .number()
-  .finite()
-  .min(LONGITUDE_MIN)
-  .max(LONGITUDE_MAX);
+export const latitudeQuerySchema = queryNumber(LATITUDE_MIN, LATITUDE_MAX);
+export const longitudeQuerySchema = queryNumber(LONGITUDE_MIN, LONGITUDE_MAX);
+export const nearbyRadiusKmQuerySchema = queryNumber(
+  NEARBY_MIN_RADIUS_KM,
+  NEARBY_MAX_RADIUS_KM,
+);
 
-/** URL absoluta `https://` de como máximo `PHOTO_URL_MAX_LENGTH` caracteres. */
+function isHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * URL absoluta `https:` (sin distinguir mayúsculas en el esquema) de como
+ * máximo `PHOTO_URL_MAX_LENGTH` caracteres.
+ */
 export const httpsUrlSchema = z
   .string()
   .max(PHOTO_URL_MAX_LENGTH)
-  .url()
-  .refine((value) => value.startsWith('https://'), {
-    message: 'URL must use https',
-  });
+  .refine(isHttpsUrl, { message: 'URL must use https' });

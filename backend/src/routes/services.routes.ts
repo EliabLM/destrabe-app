@@ -263,10 +263,6 @@ servicesRouter.get(
           )
           AND status = 'PENDING'::"ServiceStatus"
           AND "expiresAt" > NOW()
-          -- DCC-03: excluye filas antiguas con coordenadas fuera de rango
-          -- (el CHECK de BD es NOT VALID y no las corrige).
-          AND "originLat" BETWEEN -90 AND 90
-          AND "originLng" BETWEEN -180 AND 180
         ORDER BY "createdAt" DESC
         LIMIT ${NEARBY_MAX_RESULTS}
       `;

@@ -80,6 +80,17 @@ describe('createServiceSchema — textos y URL', () => {
     ).toBe(false);
   });
 
+  it('photoUrl acepta el esquema https en mayúsculas', () => {
+    for (const photoUrl of [
+      'HTTPS://cdn.example.com/f.jpg',
+      'Https://cdn.example.com/f.jpg',
+    ]) {
+      expect(
+        createServiceSchema.safeParse({ ...validService, photoUrl }).success,
+      ).toBe(true);
+    }
+  });
+
   it('photoUrl exige https y como máximo 2048 caracteres', () => {
     const ok = 'https://cdn.example.com/f.jpg';
     expect(
@@ -127,6 +138,7 @@ describe('nearbyServicesQuerySchema', () => {
       'NaN',
       'Infinity',
       'abc',
+      '',
     ]) {
       expect(
         nearbyServicesQuerySchema.safeParse({ lat: '0', lng: '0', radiusKm })
@@ -143,6 +155,10 @@ describe('nearbyServicesQuerySchema', () => {
       { lat: 'Infinity', lng: '0' },
       { lat: '0', lng: '-Infinity' },
       { lat: 'NaN', lng: '0' },
+      { lat: '', lng: '0' },
+      { lat: '0', lng: '' },
+      { lat: '   ', lng: '0' },
+      { lng: '0' },
     ]) {
       expect(nearbyServicesQuerySchema.safeParse(q).success).toBe(false);
     }

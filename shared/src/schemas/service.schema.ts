@@ -6,8 +6,7 @@ import {
   latitudeSchema,
   longitudeQuerySchema,
   longitudeSchema,
-  NEARBY_MAX_RADIUS_KM,
-  NEARBY_MIN_RADIUS_KM,
+  nearbyRadiusKmQuerySchema,
   SERVICE_DESCRIPTION_MAX_LENGTH,
 } from './inputBounds.schema';
 
@@ -41,12 +40,7 @@ export const createServiceSchema = z.object({
 export const nearbyServicesQuerySchema = z.object({
   lat: latitudeQuerySchema,
   lng: longitudeQuerySchema,
-  radiusKm: z.coerce
-    .number()
-    .finite()
-    .min(NEARBY_MIN_RADIUS_KM)
-    .max(NEARBY_MAX_RADIUS_KM)
-    .optional(),
+  radiusKm: nearbyRadiusKmQuerySchema.optional(),
 });
 
 /**
