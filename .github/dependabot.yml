@@ -1,0 +1,55 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    # Raíz con workspaces (app, backend, shared): un solo package-lock.json.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Bogota
+    open-pull-requests-limit: 10
+    labels:
+      - dependencias
+    groups:
+      npm-menores-y-parches:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Los tipos de Node siguen a la LTS fijada en engines (>=26 <27).
+      - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Bogota
+    labels:
+      - dependencias
+    groups:
+      actions-menores-y-parches:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: America/Bogota
+    labels:
+      - dependencias
+    groups:
+      docker-menores-y-parches:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # El salto de mayor de Node se hace a mano al cambiar de LTS.
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
