@@ -37,10 +37,16 @@ export const longitudeSchema = z
 
 /**
  * Número en query string (`?lat=4.65`). Rechaza el valor vacío, que
- * `z.coerce.number()` convertiría en 0.
+ * `z.coerce.number()` convertiría en 0. `transform(Number)` + `pipe` tipa
+ * igual con zod 3 y zod 4.
  */
 const queryNumber = (min: number, max: number) =>
-  z.string().trim().min(1).pipe(z.coerce.number().finite().min(min).max(max));
+  z
+    .string()
+    .trim()
+    .min(1)
+    .transform(Number)
+    .pipe(z.number().finite().min(min).max(max));
 
 export const latitudeQuerySchema = queryNumber(LATITUDE_MIN, LATITUDE_MAX);
 export const longitudeQuerySchema = queryNumber(LONGITUDE_MIN, LONGITUDE_MAX);
