@@ -30,7 +30,10 @@ describe('Better Auth mount en /api/auth (REQ-006 parcial — T6)', () => {
 
   it('no rompe /health (montaje de auth no intercepta otras rutas)', async () => {
     const res = await request(app).get('/health');
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
+    // El montaje funciona con o sin servicios; readiness decide el estado.
+    expect([200, 503]).toContain(res.status);
+    expect(res.body).toEqual({
+      status: res.status === 200 ? 'ok' : 'unavailable',
+    });
   });
 });
