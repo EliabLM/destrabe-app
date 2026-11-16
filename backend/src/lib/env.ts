@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  parseFeatureFlagsConfig,
+  type FeatureFlagsConfig,
+} from './featureFlagsConfig';
 
 /**
  * Defaults aplicados únicamente cuando `NODE_ENV === 'test'` (ver design §5).
@@ -46,9 +50,13 @@ const envSchema = z.object({
   // T1 — CORS origin for Express cors() middleware (cambio-008 / D4).
   // Default '*' for Demo; configure specific origin(s) for production.
   CORS_ORIGIN: z.string().default('*'),
+  // Issue #13 — feature flags por usuario (JSON; ver featureFlagsConfig.ts).
+  FEATURE_FLAGS: z.string().optional(),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type Env = Omit<z.infer<typeof envSchema>, 'FEATURE_FLAGS'> & {
+  FEATURE_FLAGS: FeatureFlagsConfig;
+};
 
 export function parseEnv(
   input: Record<string, string | undefined> = process.env,
@@ -120,7 +128,10 @@ export function parseEnv(
     }
   }
 
-  return parsed;
+  return {
+    ...parsed,
+    FEATURE_FLAGS: parseFeatureFlagsConfig(parsed.FEATURE_FLAGS),
+  };
 }
 
 // Singleton parsed from `process.env` para que auth.ts/plivo.ts importen `env`
