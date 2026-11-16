@@ -1,51 +1,68 @@
 import { env } from './env';
 
 /**
- * Cliente Plivo con modo dev.
+ * Cliente SMS de Plivo sin SDK (DCC-04).
  *
- * Sin `PLIVO_AUTH_ID`, `sendOtp` loggea el OTP en consola y NO invoca Plivo
- * (modo dev — REQ-005). Con credenciales, instancia el cliente Plivo con
- * carga perezosa (dynamic import) para no cargar el paquete `plivo` en
- * entornos sin credenciales (dev/tests/unit).
+ * Llama directamente a la API REST de Plivo
+ * (`POST /v1/Account/{auth_id}/Message/`) con `fetch`, Basic auth y un
+ * *timeout*. Sustituye al SDK `plivo`, que arrastraba `request` (abandonado).
+ *
+ * Sin `PLIVO_AUTH_ID`/`PLIVO_AUTH_TOKEN`, `sendOtp` registra el OTP en consola
+ * y NO llama a Plivo (modo dev — REQ-005; su endurecimiento es DCC-05).
+ *
+ * Los errores nunca incluyen el texto del mensaje ni el destinatario.
  */
 
-type PlivoClient = {
-  messages: {
-    create: (params: {
-      src: string;
-      dst: string;
-      text: string;
-    }) => Promise<unknown>;
-  };
-};
+export const PLIVO_API_BASE = 'https://api.plivo.com/v1';
+export const PLIVO_TIMEOUT_MS = 10_000;
 
-let plivoClient: PlivoClient | null = null;
-
-async function getClient(): Promise<PlivoClient | null> {
-  if (!env.PLIVO_AUTH_ID || !env.PLIVO_AUTH_TOKEN) return null;
-  if (!plivoClient) {
-    // Lazy dynamic import: evita cargar plivo en entornos sin credenciales.
-    const plivo = await import('plivo');
-    // El SDK de Plivo acepta `messages.create({src,dst,text})` (forma objeto)
-    // en runtime; casteamos vía `unknown` porque los .ts solo tipan la forma
-    // posicional.
-    plivoClient = new plivo.Client(
-      env.PLIVO_AUTH_ID,
-      env.PLIVO_AUTH_TOKEN,
-    ) as unknown as PlivoClient;
+export async function sendSms(dst: string, text: string): Promise<void> {
+  const authId = env.PLIVO_AUTH_ID;
+  const authToken = env.PLIVO_AUTH_TOKEN;
+  if (!authId || !authToken) {
+    throw new Error('Plivo credentials are not configured');
   }
-  return plivoClient;
+
+  const url = `${PLIVO_API_BASE}/Account/${encodeURIComponent(authId)}/Message/`;
+  const basic = Buffer.from(`${authId}:${authToken}`).toString('base64');
+
+  // AbortController + setTimeout (en vez de AbortSignal.timeout) para poder
+  // simular el reloj en los tests.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PLIVO_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${basic}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ src: env.PLIVO_PHONE_NUMBER, dst, text }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`Plivo request timeout after ${PLIVO_TIMEOUT_MS} ms`);
+    }
+    throw new Error('Plivo request failed', { cause: err });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  // No necesitamos el cuerpo (y puede repetir el mensaje o el destinatario).
+  await res.body?.cancel().catch(() => {});
+  if (!res.ok) {
+    throw new Error(`Plivo responded with HTTP ${res.status}`);
+  }
 }
 
 export async function sendOtp(phone: string, code: string): Promise<void> {
-  const client = await getClient();
-  if (!client) {
+  if (!env.PLIVO_AUTH_ID || !env.PLIVO_AUTH_TOKEN) {
     console.log(`[dev] OTP for ${phone}: ${code}`);
     return;
   }
-  await client.messages.create({
-    src: env.PLIVO_PHONE_NUMBER!,
-    dst: phone,
-    text: `destrabe: tu código es ${code}. Vence en 5 min.`,
-  });
+  await sendSms(phone, `destrabe: tu código es ${code}. Vence en 5 min.`);
 }
