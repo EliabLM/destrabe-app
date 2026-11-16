@@ -233,6 +233,7 @@ quotesAcceptRouter.post(
             data: {
               status: ServiceStatus.ACTIVE,
               acceptedQuoteId: quote.id,
+              assignedOperatorProfileId: quote.operatorProfileId,
             },
           });
           await tx.payment.create({

@@ -15,6 +15,7 @@ import { env } from '../lib/env';
 import { assertTransition } from '../services/serviceMachine';
 import { enqueueServiceExpiry } from '../lib/queue';
 import { PaymentPendingError } from '../services/paymentGateway';
+import { isOpenForQuotes, toOperatorPreview } from '../services/serviceAccess';
 
 /**
  * Combined request type: authenticated (`user`) + validated (`validated`).
@@ -29,10 +30,20 @@ type ServiceRequest = AuthedRequest & ValidatedRequest;
  *   POST  /services              — create (CLIENT role)
  *   GET   /services              — own paginated list (CLIENT role)
  *   GET   /services/nearby       — radius search (OPERATOR role, PostGIS ST_DWithin)
- *   GET   /services/:id          — get by id (owner full / operator public / other 404)
- *   PATCH /services/:id/status   — update status (owner, FSM assertTransition)
+ *   GET   /services/:id          — get by id (owner full / assigned operator /
+ *                                  operator preview if open for quotes / other 404)
+ *   PATCH /services/:id/status   — update status (owner / assigned operator, FSM)
  */
 export const servicesRouter = Router();
+
+/** OperatorProfile.id del usuario de la sesión, o null si no tiene perfil. */
+async function findOperatorProfileId(userId: string): Promise<string | null> {
+  const profile = await prisma.operatorProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  return profile?.id ?? null;
+}
 
 // ─── All routes require authentication ───────────────────────────────────────
 
@@ -260,8 +271,8 @@ servicesRouter.get(
         ORDER BY "createdAt" DESC
       `;
 
-      // REQ-003: Array público sin datos sensibles del cliente
-      res.json(services);
+      // REQ-003 / DCC-02: vista previa (coordenadas aproximadas, sin foto)
+      res.json(services.map(toOperatorPreview));
     } catch (err) {
       next(err);
     }
@@ -286,7 +297,6 @@ servicesRouter.get('/:id', async (req, res, next) => {
     }
 
     const isOwner = service.client.userId === user.id;
-    const isOperator = user.role === UserRole.OPERATOR;
     const isAdmin = user.role === UserRole.ADMIN;
 
     if (isOwner || isAdmin) {
@@ -294,14 +304,24 @@ servicesRouter.get('/:id', async (req, res, next) => {
       return res.json(service);
     }
 
-    if (isOperator) {
-      // REQ-004: Operador ve público (sin datos sensibles del cliente)
-      const {
-        client: _client,
-        clientProfileId: _cpid,
-        ...publicData
-      } = service;
-      return res.json(publicData);
+    if (user.role === UserRole.OPERATOR) {
+      const operatorProfileId = await findOperatorProfileId(user.id);
+      if (
+        operatorProfileId !== null &&
+        service.assignedOperatorProfileId === operatorProfileId
+      ) {
+        // DCC-02: el operador asignado ve el detalle (sin datos del cliente)
+        const {
+          client: _client,
+          clientProfileId: _cpid,
+          ...assignedData
+        } = service;
+        return res.json(assignedData);
+      }
+      if (isOpenForQuotes(service)) {
+        // DCC-02: no asignado → vista previa mientras admite cotizaciones
+        return res.json(toOperatorPreview(service));
+      }
     }
 
     // REQ-004: Ajeno → 404 (no revela existencia)
@@ -346,17 +366,22 @@ servicesRouter.patch(
             .json({ error: 'Forbidden', code: 'FORBIDDEN' });
         }
       } else if (user.role === UserRole.OPERATOR) {
+        // DCC-02: solo el operador asignado actúa sobre el servicio; para
+        // cualquier otro el servicio "no existe" (no revela existencia).
+        const operatorProfileId = await findOperatorProfileId(user.id);
+        if (
+          operatorProfileId === null ||
+          service.assignedOperatorProfileId !== operatorProfileId
+        ) {
+          return res
+            .status(404)
+            .json({ error: 'Not Found', code: 'NOT_FOUND' });
+        }
         // OPERATOR can only complete assigned services (ACTIVE→COMPLETED)
         if (targetStatus !== ServiceStatus.COMPLETED) {
           return res
             .status(403)
             .json({ error: 'Forbidden', code: 'FORBIDDEN' });
-        }
-        if (!service.acceptedQuoteId) {
-          return res.status(409).json({
-            error: 'Not assigned to this service',
-            code: 'INVALID_TRANSITION',
-          });
         }
       } else {
         // ADMIN and other roles not permitted via API
