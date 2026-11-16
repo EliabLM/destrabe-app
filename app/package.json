@@ -20,6 +20,7 @@
     "@rnmapbox/maps": "^10.3.18",
     "axios": "^1.7.7",
     "expo": "~58.0.25",
+    "expo-dev-client": "~58.0.20",
     "expo-linking": "~58.0.17",
     "expo-secure-store": "~58.0.3",
     "expo-splash-screen": "~58.0.14",

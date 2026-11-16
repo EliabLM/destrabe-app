@@ -69,6 +69,81 @@ npx expo run:ios       # iOS
 
 Para hot-reload en desarrollo JS/TS no es necesario re-ejecutar prebuild — solo salvar el archivo.
 
+## Generar e instalar la app en un teléfono Android (EAS Build)
+
+La app no funciona en Expo Go (usa `@rnmapbox/maps`), así que se instala un APK generado en los servidores de Expo con **EAS Build**. Los dos perfiles de `eas.json` entran en el plan gratuito (cola gratuita; puede tardar más en empezar):
+
+| Perfil        | Para qué                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------ |
+| `development` | _Development build_: APK con `expo-dev-client` que carga el código desde tu PC con `expo start`. |
+| `preview`     | APK interno autónomo (lleva el código dentro); para enseñar la demo sin PC.                      |
+
+No compiles en el VPS: todo el build ocurre en EAS.
+
+### Paso 1. Cuenta y CLI (una sola vez)
+
+1. Crea una cuenta gratuita en <https://expo.dev/signup>.
+2. En tu PC, desde `app/`:
+
+   ```bash
+   npm install -g eas-cli
+   eas login
+   eas init
+   ```
+
+   `eas init` crea el proyecto en Expo y añade `extra.eas.projectId` (y `owner`) a `app.json`. Ese id no es secreto: haz commit de ese cambio.
+
+### Paso 2. Variables de entorno en EAS (una sola vez)
+
+Los valores se guardan en EAS, **nunca** en `eas.json`, `app.json` ni en el repo.
+
+1. Token secreto de descarga de Mapbox (scope `DOWNLOADS:READ`, ver arriba), como variable **secreta**:
+
+   ```bash
+   eas env:set --name RNMAPBOX_MAPS_DOWNLOAD_TOKEN --value "sk.xxxx" \
+     --visibility secret --environment development --environment preview
+   ```
+
+2. Variables públicas de la app (se incrustan en el APK, por eso no son secretas):
+
+   ```bash
+   eas env:set --name EXPO_PUBLIC_MAPBOX_TOKEN --value "pk.xxxx" \
+     --visibility plaintext --environment development --environment preview
+   eas env:set --name EXPO_PUBLIC_API_URL --value "https://<tu-backend>" \
+     --visibility plaintext --environment development --environment preview
+   ```
+
+   Compruébalo con `eas env:list --environment preview`. También se pueden crear desde la web (expo.dev → proyecto → Environment variables).
+
+> El perfil `preview` es un build _release_: Android bloquea `http://` en claro, así que `EXPO_PUBLIC_API_URL` debe ser `https://`. En `development` sirve una IP local (`http://192.168.x.x:3001`).
+
+### Paso 3. Development build
+
+```bash
+cd app
+eas build -p android --profile development
+```
+
+1. Al terminar, EAS muestra un enlace y un código QR. Ábrelo en el teléfono, descarga el APK e instálalo (Android pedirá permitir "instalar apps de origen desconocido" para el navegador).
+2. En tu PC, con el teléfono en la misma red Wi-Fi:
+
+   ```bash
+   npx expo start --dev-client
+   ```
+
+3. Abre la app "destrabe" del teléfono y escanea el QR de la terminal (o elige el servidor de la lista). Los cambios de JS/TS se recargan sin volver a compilar; solo hay que repetir el build si cambian dependencias nativas o plugins.
+
+Para `expo start`, las variables `EXPO_PUBLIC_*` se leen de `app/.env` (paso 2 de Setup).
+
+### Paso 4. APK de demo (`preview`)
+
+```bash
+cd app
+eas build -p android --profile preview
+```
+
+Instala el APK desde el enlace o QR igual que en el paso 3. Arranca sin PC y usa las variables del entorno `preview` de EAS.
+
 ## Backend
 
 El backend debe estar corriendo para que la app funcione:
