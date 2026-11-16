@@ -55,12 +55,14 @@ export const nearbyRadiusKmQuerySchema = queryNumber(
   NEARBY_MAX_RADIUS_KM,
 );
 
+/**
+ * `https://` (sin distinguir mayúsculas) seguido de un host no vacío y sin
+ * espacios. Regex en vez de `new URL()`, que lanza en React Native 0.74.
+ */
+const HTTPS_URL_REGEX = /^https:\/\/[^\s/$.?#][^\s]*$/i;
+
 function isHttpsUrl(value: string): boolean {
-  try {
-    return new URL(value).protocol === 'https:';
-  } catch {
-    return false;
-  }
+  return HTTPS_URL_REGEX.test(value);
 }
 
 /**

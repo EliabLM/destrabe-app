@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createOperatorProfileSchema,
   createServiceSchema,
+  httpsUrlSchema,
   nearbyServicesQuerySchema,
   updateLocationSchema,
 } from '../src';
@@ -197,6 +198,48 @@ describe('esquemas de operador', () => {
       { lastLatitude: 0, lastLongitude: NaN },
     ]) {
       expect(updateLocationSchema.safeParse(loc).success).toBe(false);
+    }
+  });
+});
+
+describe('httpsUrlSchema sin `URL` funcional (React Native 0.74)', () => {
+  it('valida photoUrl aunque `new URL()` lance', () => {
+    vi.stubGlobal(
+      'URL',
+      class {
+        constructor() {
+          throw new Error('URL.protocol is not implemented');
+        }
+      },
+    );
+    try {
+      for (const photoUrl of [
+        'https://cdn.example.com/f.jpg',
+        'HTTPS://cdn.example.com/f.jpg',
+      ]) {
+        expect(httpsUrlSchema.safeParse(photoUrl).success).toBe(true);
+        expect(
+          createServiceSchema.safeParse({ ...validService, photoUrl }).success,
+        ).toBe(true);
+        expect(
+          createOperatorProfileSchema.safeParse({
+            truckType: 'grúa',
+            licensePlate: 'ABC123',
+            photoUrl,
+          }).success,
+        ).toBe(true);
+      }
+      for (const photoUrl of [
+        'http://cdn.example.com/f.jpg',
+        'https://',
+        'https:// espacio.com',
+        'https://cdn.example.com/a b.jpg',
+        'xhttps://cdn.example.com',
+      ]) {
+        expect(httpsUrlSchema.safeParse(photoUrl).success).toBe(false);
+      }
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });
