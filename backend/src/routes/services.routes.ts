@@ -6,6 +6,8 @@ import { validate } from '../middleware/validate';
 import type { ValidatedRequest } from '../middleware/validate';
 import {
   createServiceSchema,
+  NEARBY_MAX_RADIUS_KM,
+  NEARBY_MAX_RESULTS,
   nearbyServicesQuerySchema,
   listServicesQuerySchema,
   updateServiceStatusSchema,
@@ -221,9 +223,13 @@ servicesRouter.get(
       const { lat, lng, radiusKm } = sr.validated!['query'] as {
         lat: number;
         lng: number;
-        radiusKm: number;
+        radiusKm?: number;
       };
-      const radiusMeters = radiusKm * 1000;
+      // DCC-03: radio acotado por el schema; por defecto NEARBY_RADIUS_KM
+      // (también acotado al máximo permitido).
+      const radiusMeters =
+        (radiusKm ?? Math.min(env.NEARBY_RADIUS_KM, NEARBY_MAX_RADIUS_KM)) *
+        1000;
 
       // REQ-003 / REQ-010: PostGIS ST_DWithin via $queryRaw with binds.
       // Requires PostGIS extension (applied in T8 migration).
@@ -257,7 +263,12 @@ servicesRouter.get(
           )
           AND status = 'PENDING'::"ServiceStatus"
           AND "expiresAt" > NOW()
+          -- DCC-03: excluye filas antiguas con coordenadas fuera de rango
+          -- (el CHECK de BD es NOT VALID y no las corrige).
+          AND "originLat" BETWEEN -90 AND 90
+          AND "originLng" BETWEEN -180 AND 180
         ORDER BY "createdAt" DESC
+        LIMIT ${NEARBY_MAX_RESULTS}
       `;
 
       // REQ-003: Array público sin datos sensibles del cliente
