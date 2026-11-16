@@ -13,6 +13,7 @@ const { envMock } = vi.hoisted(() => ({
     PLIVO_AUTH_ID: undefined as string | undefined,
     PLIVO_AUTH_TOKEN: undefined as string | undefined,
     PLIVO_PHONE_NUMBER: undefined as string | undefined,
+    NODE_ENV: 'test' as string,
   },
 }));
 
@@ -34,6 +35,7 @@ describe('plivo client — sendOtp (REQ-005)', () => {
     envMock.PLIVO_AUTH_ID = undefined;
     envMock.PLIVO_AUTH_TOKEN = undefined;
     envMock.PLIVO_PHONE_NUMBER = undefined;
+    envMock.NODE_ENV = 'test';
   });
 
   afterEach(() => {
@@ -42,16 +44,38 @@ describe('plivo client — sendOtp (REQ-005)', () => {
     vi.useRealTimers();
   });
 
-  it('logs the OTP and does not call Plivo when PLIVO_AUTH_ID is not set (dev mode)', async () => {
+  it('logs the OTP with a masked phone and does not call Plivo when PLIVO_AUTH_ID is not set (dev mode)', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const { sendOtp } = await import('../src/lib/plivo');
 
     await sendOtp('+573001234567', '123456');
 
     expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('+57******4567'),
+    );
+    expect(consoleSpy).not.toHaveBeenCalledWith(
       expect.stringContaining('+573001234567'),
     );
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('123456'));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('in production without credentials fails explicitly and never logs the OTP (DCC-05)', async () => {
+    envMock.NODE_ENV = 'production';
+    const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map(
+      (m) => vi.spyOn(console, m).mockImplementation(() => {}),
+    );
+    const { sendOtp } = await import('../src/lib/plivo');
+
+    await expect(sendOtp('+573001234567', '123456')).rejects.toThrow(
+      'Plivo credentials are not configured',
+    );
+
+    for (const spy of spies) {
+      for (const call of spy.mock.calls) {
+        expect(JSON.stringify(call)).not.toContain('123456');
+      }
+    }
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

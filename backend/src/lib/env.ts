@@ -46,6 +46,38 @@ const envSchema = z.object({
   // T1 — CORS origin for Express cors() middleware (cambio-008 / D4).
   // Default '*' for Demo; configure specific origin(s) for production.
   CORS_ORIGIN: z.string().default('*'),
+  // DCC-05 — Proxies de confianza para Express (`trust proxy`): lista de IP o
+  // CIDR (o los alias de proxy-addr `loopback`, `linklocal`, `uniquelocal`).
+  // Por defecto: loopback + redes privadas (la red Docker de Traefik/Coolify).
+  // `false` desactiva la confianza (la IP será la del socket).
+  TRUST_PROXY: z.string().trim().min(1).default('loopback,uniquelocal'),
+  // DCC-05 — Límites de envío de OTP por SMS, persistidos en Postgres.
+  SMS_LIMIT_PHONE_15MIN: z.coerce.number().int().positive().default(3),
+  SMS_LIMIT_PHONE_DAY: z.coerce.number().int().positive().default(10),
+  SMS_LIMIT_IP_HOUR: z.coerce.number().int().positive().default(10),
+  SMS_LIMIT_IP_DAY: z.coerce.number().int().positive().default(30),
+  SMS_DAILY_CAP: z.coerce.number().int().positive().default(50),
+  // DCC-05 — Solo fuera de producción: números (coma) con OTP fijo, sin SMS.
+  OTP_TEST_NUMBERS: z
+    .string()
+    .optional()
+    .transform((v) =>
+      (v ?? '')
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean),
+    )
+    .pipe(
+      z.array(
+        z
+          .string()
+          .regex(/^\+573\d{9}$/, 'OTP_TEST_NUMBERS: solo móviles +573…'),
+      ),
+    ),
+  OTP_TEST_CODE: z
+    .string()
+    .regex(/^\d{6}$/, 'OTP_TEST_CODE debe tener 6 dígitos')
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -77,6 +109,12 @@ export function parseEnv(
     for (const name of ['DATABASE_URL', 'CORS_ORIGIN'] as const) {
       if (!input[name]?.trim()) {
         throw new Error(`${name} is required in production`);
+      }
+    }
+    // DCC-05: el OTP fijo de pruebas nunca puede existir en producción.
+    for (const name of ['OTP_TEST_NUMBERS', 'OTP_TEST_CODE'] as const) {
+      if (input[name] !== undefined) {
+        throw new Error(`${name} must not be set in production`);
       }
     }
   }
@@ -118,6 +156,10 @@ export function parseEnv(
         'MP_WEBHOOK_URL is required when PAYMENT_GATEWAY=mercadopago in production',
       );
     }
+  }
+
+  if (parsed.OTP_TEST_NUMBERS.length > 0 && !parsed.OTP_TEST_CODE) {
+    throw new Error('OTP_TEST_CODE is required when OTP_TEST_NUMBERS is set');
   }
 
   return parsed;

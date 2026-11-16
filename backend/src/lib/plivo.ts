@@ -1,4 +1,5 @@
 import { env } from './env';
+import { maskPhone } from './logMask';
 
 /**
  * Cliente SMS de Plivo sin SDK (DCC-04).
@@ -7,8 +8,9 @@ import { env } from './env';
  * (`POST /v1/Account/{auth_id}/Message/`) con `fetch`, Basic auth y un
  * *timeout*. Sustituye al SDK `plivo`, que arrastraba `request` (abandonado).
  *
- * Sin `PLIVO_AUTH_ID`/`PLIVO_AUTH_TOKEN`, `sendOtp` registra el OTP en consola
- * y NO llama a Plivo (modo dev — REQ-005; su endurecimiento es DCC-05).
+ * Sin `PLIVO_AUTH_ID`/`PLIVO_AUTH_TOKEN`: fuera de producción `sendOtp`
+ * registra el OTP (con el teléfono enmascarado) y NO llama a Plivo; en
+ * producción falla de forma explícita y nunca imprime el código (DCC-05).
  *
  * Los errores nunca incluyen el texto del mensaje ni el destinatario.
  */
@@ -61,7 +63,10 @@ export async function sendSms(dst: string, text: string): Promise<void> {
 
 export async function sendOtp(phone: string, code: string): Promise<void> {
   if (!env.PLIVO_AUTH_ID || !env.PLIVO_AUTH_TOKEN) {
-    console.log(`[dev] OTP for ${phone}: ${code}`);
+    if (env.NODE_ENV === 'production') {
+      throw new Error('Plivo credentials are not configured');
+    }
+    console.log(`[dev] OTP for ${maskPhone(phone)}: ${code}`);
     return;
   }
   await sendSms(phone, `destrabe: tu código es ${code}. Vence en 5 min.`);
