@@ -74,6 +74,7 @@ const AUTH_TABLES = [
   'Account',
   'Verification',
   'User',
+  'SmsSendLog',
 ] as const;
 
 async function truncateAuthTables() {

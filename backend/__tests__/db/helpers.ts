@@ -16,6 +16,7 @@ const TABLES = [
   'Account',
   'Session',
   'User',
+  'SmsSendLog',
 ] as const;
 
 export async function resetDb() {

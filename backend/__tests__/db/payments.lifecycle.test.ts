@@ -58,6 +58,7 @@ const TABLES = [
   'Account',
   'Session',
   'User',
+  'SmsSendLog', // DCC-05: límites de OTP por SMS
 ] as const;
 
 async function truncateAll() {
