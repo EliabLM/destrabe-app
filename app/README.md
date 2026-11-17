@@ -91,6 +91,8 @@ No compiles en el VPS: todo el build ocurre en EAS.
    eas init
    ```
 
+   La guía usa `eas env:set`, que existe desde eas-cli 21.1.0 (antes era `eas env:create`, hoy obsoleto). `eas.json` exige esa versión mínima; compruébala con `eas --version`.
+
    `eas init` crea el proyecto en Expo y añade `extra.eas.projectId` (y `owner`) a `app.json`. Ese id no es secreto: haz commit de ese cambio.
 
 ### Paso 2. Variables de entorno en EAS (una sola vez)
