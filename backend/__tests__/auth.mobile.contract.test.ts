@@ -27,6 +27,12 @@ vi.mock('../src/lib/prisma', () => ({
     service: { findUnique: vi.fn(async () => null) },
   },
 }));
+// Los límites de SMS (Postgres) tienen sus propias pruebas con BD (DCC-05).
+vi.mock('../src/lib/smsGuard', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/lib/smsGuard')>()),
+  checkSmsAllowed: vi.fn(async () => {}),
+  reserveSmsSend: vi.fn(async () => {}),
+}));
 vi.mock('../src/lib/queue', () => ({ enqueueServiceExpiry: vi.fn() }));
 vi.mock('../../app/src/stores/authStore', () => ({
   authStore: {

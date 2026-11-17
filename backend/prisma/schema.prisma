@@ -269,3 +269,17 @@ model Verification {
 
   @@index([identifier])
 }
+
+// DCC-05 — Registro de envíos de OTP por SMS para los límites persistentes
+// (por número, por IP y tope diario global). Guarda HMAC del teléfono y de la
+// IP, nunca el valor en claro. Se purgan las filas de más de 2 días.
+model SmsSendLog {
+  id        String   @id @default(cuid())
+  phoneHash String
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([phoneHash, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
+}

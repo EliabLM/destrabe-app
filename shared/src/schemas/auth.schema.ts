@@ -9,13 +9,25 @@ import { userRoleSchema } from './user.schema';
  * en frontend (formularios + parseo de respuestas).
  */
 
-/** Teléfono en formato E.164: `+<country><number>`. */
+/**
+ * Móvil colombiano en E.164 (DCC-05): `+57` + `3` + 9 dígitos. El OTP por SMS
+ * solo se envía a estos números (decisión del usuario; Plivo cobra mucho más
+ * en otras rutas). El backend aplica la misma regla en `phoneNumberValidator`.
+ */
+export const COLOMBIAN_MOBILE_REGEX = /^\+573\d{9}$/;
+
+export function isColombianMobile(phoneNumber: unknown): boolean {
+  return (
+    typeof phoneNumber === 'string' && COLOMBIAN_MOBILE_REGEX.test(phoneNumber)
+  );
+}
+
 const phoneNumberField = z
   .string()
   .min(1, 'phoneNumber es requerido')
   .regex(
-    /^\+\d{6,15}$/,
-    'phoneNumber debe estar en formato E.164 (ej. +573001234567)',
+    COLOMBIAN_MOBILE_REGEX,
+    'phoneNumber debe ser un móvil colombiano (ej. +573001234567)',
   );
 
 /** OTP de 6 dígitos (config `otpLength: 6` en design §3). */
