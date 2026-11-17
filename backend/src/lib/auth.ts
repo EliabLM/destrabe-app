@@ -62,6 +62,6 @@ export const auth = betterAuth({
 
 /**
  * Handler montable en Express:
- * `app.all('/api/auth/*', authHandler)` (T6).
+ * `router.use('/api/auth', authHandler)` (T6).
  */
 export const authHandler = toNodeHandler(auth.handler);

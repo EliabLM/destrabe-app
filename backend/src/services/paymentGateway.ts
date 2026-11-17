@@ -64,7 +64,8 @@ export class StubPaymentGateway implements PaymentGateway {
       });
     }
 
-    const data = payload as { paymentId: string; status: string };
+    // `?? {}`: con Express 5, `req.body` es `undefined` si no hay cuerpo.
+    const data = (payload ?? {}) as { paymentId: string; status: string };
     return {
       paymentId: data.paymentId,
       status: data.status === 'FAILED' ? 'FAILED' : 'CONFIRMED',

@@ -19,7 +19,10 @@ const { mockPreferenceCreate, mockValidate } = vi.hoisted(() => ({
 
 vi.mock('mercadopago', () => ({
   MercadoPagoConfig: vi.fn(),
-  Preference: vi.fn(() => ({ create: mockPreferenceCreate })),
+  // `function` (no flecha): Vitest 4 exige mocks construibles con `new`.
+  Preference: vi.fn(function () {
+    return { create: mockPreferenceCreate };
+  }),
   WebhookSignatureValidator: { validate: mockValidate },
 }));
 
