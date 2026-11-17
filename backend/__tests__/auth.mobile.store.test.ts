@@ -23,6 +23,13 @@ vi.mock('../../app/src/lib/secureStorage', () => ({
 }));
 vi.mock('../../app/src/lib/apiMe', () => ({ getMe: getMeMock }));
 vi.mock('../../app/src/lib/apiAuth', () => ({ otpSignOut: signOutMock }));
+const featuresLoadMock = vi.hoisted(() => vi.fn());
+const featuresResetMock = vi.hoisted(() => vi.fn());
+vi.mock('../../app/src/stores/featuresStore', () => ({
+  featuresStore: {
+    getState: () => ({ load: featuresLoadMock, reset: featuresResetMock }),
+  },
+}));
 import { authStore } from '../../app/src/stores/authStore';
 import { UserRole } from '@destrabe/shared';
 
@@ -31,6 +38,8 @@ beforeEach(() => {
   storage.userId = null;
   getMeMock.mockReset();
   signOutMock.mockReset();
+  featuresLoadMock.mockReset();
+  featuresResetMock.mockReset();
   authStore.setState({
     token: null,
     user: null,
@@ -54,6 +63,7 @@ describe('ciclo de sesión móvil', () => {
       user: { id: 'u1', role: 'OPERATOR' },
       profileReady: true,
     });
+    expect(featuresLoadMock).toHaveBeenCalledWith('u1');
   });
 
   it('mantiene onboarding de vehículo tras reinicio si OPERATOR solo tiene perfil cliente', async () => {
@@ -108,8 +118,10 @@ describe('ciclo de sesión móvil', () => {
     signOutMock.mockImplementation(async () => {
       expect(storage.token).toBe('signed-token');
     });
+    expect(featuresLoadMock).toHaveBeenCalledWith('u1');
     await authStore.getState().logout();
     expect(signOutMock).toHaveBeenCalledOnce();
     expect(storage.token).toBeNull();
+    expect(featuresResetMock).toHaveBeenCalled();
   });
 });
