@@ -1,5 +1,5 @@
 # Build with Buildx --platform linux/arm64; both stages run on the target Debian architecture.
-FROM node:20-bookworm-slim AS builder
+FROM node:26.13.1-bookworm-slim AS builder
 WORKDIR /srv
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
@@ -16,7 +16,7 @@ RUN npm run build -w @destrabe/shared \
     && npx prisma generate --schema=backend/prisma/schema.prisma \
     && npm run build -w @destrabe/backend
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:26.13.1-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /srv
 RUN apt-get update && apt-get install -y --no-install-recommends openssl \
