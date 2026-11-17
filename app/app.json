@@ -23,7 +23,8 @@
         {
           "backgroundColor": "#1a1a2e"
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }
