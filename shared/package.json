@@ -16,6 +16,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "zod": "^3.23.0"
+    "zod": "^4.6.7"
+  },
+  "engines": {
+    "node": ">=26 <27"
   }
 }

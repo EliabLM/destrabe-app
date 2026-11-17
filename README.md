@@ -59,6 +59,13 @@ El proyecto se desarrolla con **SDD (Spec-Driven Development)** y **TDD estricto
 - Las decisiones arquitectónicas se registran como ADRs en `docs/adr/`.
 - La estrategia y convenios de pruebas viven en `docs/testing/`.
 
+## Feature flags
+
+Toda feature nueva se despliega **detrás de un feature flag**, activa solo
+para una allowlist (el dueño del producto) hasta liberarla a todos. Las
+correcciones de errores y de seguridad no llevan flag. Cómo crear, proteger y
+liberar un flag: [docs/runbooks/feature-flags.md](./docs/runbooks/feature-flags.md).
+
 ## Empezar
 
 > Foundation (cambio-001) + Data model (cambio-002) implementados. `backend/` y `@destrabe/shared` están listos; `app/` (mobile) y `frontend/` (admin) se inicializan en cambios posteriores.

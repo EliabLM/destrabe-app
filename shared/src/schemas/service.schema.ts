@@ -1,5 +1,14 @@
 import { z } from 'zod';
 import { ServiceStatus, ServiceType } from '../types/service';
+import {
+  httpsUrlSchema,
+  latitudeQuerySchema,
+  latitudeSchema,
+  longitudeQuerySchema,
+  longitudeSchema,
+  nearbyRadiusKmQuerySchema,
+  SERVICE_DESCRIPTION_MAX_LENGTH,
+} from './inputBounds.schema';
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
@@ -11,25 +20,27 @@ export const serviceTypeSchema = z.nativeEnum(ServiceType);
 /**
  * Schema for `POST /services`.
  * `originLat`/`originLng` required; `destLat`/`destLng`, `description`, `photoUrl` opcionales.
+ * Coordenadas en rango WGS84, `description` ≤ 500 y `photoUrl` https (DCC-03).
  */
 export const createServiceSchema = z.object({
   type: serviceTypeSchema,
-  originLat: z.number(),
-  originLng: z.number(),
-  destLat: z.number().optional(),
-  destLng: z.number().optional(),
-  description: z.string().optional(),
-  photoUrl: z.string().optional(),
+  originLat: latitudeSchema,
+  originLng: longitudeSchema,
+  destLat: latitudeSchema.optional(),
+  destLng: longitudeSchema.optional(),
+  description: z.string().max(SERVICE_DESCRIPTION_MAX_LENGTH).optional(),
+  photoUrl: httpsUrlSchema.optional(),
 });
 
 /**
  * Schema for `GET /services/nearby` query params.
- * `lat`/`lng` required (coerced from string); `radiusKm` opcional con default 5.
+ * `lat`/`lng` required (coerced from string, en rango); `radiusKm` opcional
+ * entre 1 y 25 km. Sin `radiusKm`, el backend aplica `NEARBY_RADIUS_KM`.
  */
 export const nearbyServicesQuerySchema = z.object({
-  lat: z.coerce.number(),
-  lng: z.coerce.number(),
-  radiusKm: z.coerce.number().default(5),
+  lat: latitudeQuerySchema,
+  lng: longitudeQuerySchema,
+  radiusKm: nearbyRadiusKmQuerySchema.optional(),
 });
 
 /**
@@ -64,7 +75,7 @@ export const listServicesQuerySchema = z
       .regex(/^[1-9][0-9]*$/)
       .transform(Number)
       .pipe(z.number().int().min(1).max(100))
-      .default('20'),
+      .prefault('20'),
     cursor: z
       .string()
       .regex(/^[A-Za-z0-9_-]{1,512}$/)

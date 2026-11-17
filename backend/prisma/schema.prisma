@@ -57,8 +57,9 @@ model OperatorProfile {
   lastSeenAt    DateTime?
   mpAccountId   String?
 
-  quotes  Quote[]
-  reviews Review[]
+  quotes           Quote[]
+  reviews          Review[]
+  assignedServices Service[] @relation("AssignedOperator")
 
   @@index([userId])
 }
@@ -83,6 +84,11 @@ model Service {
   acceptedQuoteId String? @unique
   acceptedQuote   Quote?  @relation("AcceptedQuote", fields: [acceptedQuoteId], references: [id])
 
+  // Operador que atiende el servicio. Se fija al aceptar la cotización, en la
+  // misma transacción, y es la base de la autorización del rol OPERATOR.
+  assignedOperatorProfileId String?
+  assignedOperator          OperatorProfile? @relation("AssignedOperator", fields: [assignedOperatorProfileId], references: [id], onDelete: SetNull)
+
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -94,6 +100,7 @@ model Service {
 
   @@index([clientProfileId])
   @@index([status])
+  @@index([assignedOperatorProfileId])
 }
 
 model Quote {
@@ -261,4 +268,18 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+// DCC-05 — Registro de envíos de OTP por SMS para los límites persistentes
+// (por número, por IP y tope diario global). Guarda HMAC del teléfono y de la
+// IP, nunca el valor en claro. Se purgan las filas de más de 2 días.
+model SmsSendLog {
+  id        String   @id @default(cuid())
+  phoneHash String
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([phoneHash, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
 }

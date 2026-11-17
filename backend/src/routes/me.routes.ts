@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, AuthedRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { getEnabledFeatures } from '../lib/featureFlags';
 
 /**
  * /me route — cambio-008 / D3 / REQ-AUTH-011.
@@ -15,6 +16,19 @@ import { prisma } from '../lib/prisma';
 export const meRouter = Router();
 
 meRouter.use(requireAuth);
+
+/**
+ * GET /api/me/features — flags activos para la sesión (issue #13). La app los
+ * carga al iniciar sesión para mostrar u ocultar UI.
+ */
+meRouter.get('/features', async (req, res, next) => {
+  try {
+    const features = await getEnabledFeatures((req as AuthedRequest).user);
+    res.json({ features });
+  } catch (err) {
+    next(err);
+  }
+});
 
 meRouter.get('/', async (req, res, next) => {
   try {

@@ -35,9 +35,12 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@types/node": "^20.19.43",
+    "@types/node": "^26.6.6",
     "@types/react": "~19.3.0",
     "typescript": "~6.0.3",
     "expo-doctor": "^1.21.8"
+  },
+  "engines": {
+    "node": ">=26 <27"
   }
 }

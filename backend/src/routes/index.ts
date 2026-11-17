@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { healthRouter } from './health.routes';
 import { authHandler } from '../lib/auth';
+import { normalizeClientIp } from '../middleware/clientIp';
 import { servicesRouter } from './services.routes';
 import { serviceQuotesRouter, quotesAcceptRouter } from './quotes.routes';
 import { paymentsRouter } from './payments.routes';
@@ -15,7 +16,8 @@ router.use(healthRouter);
 // `authHandler` (toNodeHandler(auth.handler)) reconstruye la URL completa a
 // partir de `req.baseUrl`+`req.url`, así que el prefijo de Express no rompe
 // el basePath `/api/auth` que espera Better Auth internamente.
-router.use('/api/auth', authHandler);
+// DCC-05: IP del cliente (Express + trust proxy) en un único X-Forwarded-For.
+router.use('/api/auth', normalizeClientIp, authHandler);
 
 // Services: monta servicios bajo /services (cambio-004 / T7).
 router.use('/services', servicesRouter);

@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import {
+  httpsUrlSchema,
+  latitudeSchema,
+  LICENSE_PLATE_MAX_LENGTH,
+  longitudeSchema,
+  TRUCK_TYPE_MAX_LENGTH,
+} from './inputBounds.schema';
 
 /**
  * Schema for `POST /api/operator/profile` (cambio-008 / D1 / REQ-OP-001).
@@ -6,18 +13,24 @@ import { z } from 'zod';
  * Fields:
  * - `truckType` (string, required): tipo de vehículo (ej. "grúa", "plataforma")
  * - `licensePlate` (string, required): placa del vehículo (sin validación formato en Demo)
- * - `photoUrl` (string, optional): URL de foto del operador/vehículo
+ * - `photoUrl` (string, optional): URL https de foto del operador/vehículo
  * - `available` (boolean, optional, default false): disponible para tomar servicios
  * - `lastLatitude` (number, optional): última latitud conocida
  * - `lastLongitude` (number, optional): última longitud conocida
  */
 export const createOperatorProfileSchema = z.object({
-  truckType: z.string().min(1, 'truckType is required'),
-  licensePlate: z.string().min(1, 'licensePlate is required'),
-  photoUrl: z.string().optional(),
+  truckType: z
+    .string()
+    .min(1, 'truckType is required')
+    .max(TRUCK_TYPE_MAX_LENGTH),
+  licensePlate: z
+    .string()
+    .min(1, 'licensePlate is required')
+    .max(LICENSE_PLATE_MAX_LENGTH),
+  photoUrl: httpsUrlSchema.optional(),
   available: z.boolean().optional().default(false),
-  lastLatitude: z.number().optional(),
-  lastLongitude: z.number().optional(),
+  lastLatitude: latitudeSchema.optional(),
+  lastLongitude: longitudeSchema.optional(),
 });
 
 /**
@@ -29,8 +42,8 @@ export const createOperatorProfileSchema = z.object({
  * - `available` (boolean, optional): toggle de disponibilidad
  */
 export const updateLocationSchema = z.object({
-  lastLatitude: z.number(),
-  lastLongitude: z.number(),
+  lastLatitude: latitudeSchema,
+  lastLongitude: longitudeSchema,
   available: z.boolean().optional(),
 });
 

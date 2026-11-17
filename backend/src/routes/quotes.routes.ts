@@ -55,7 +55,7 @@ serviceQuotesRouter.post(
     try {
       const sr = req as ServiceRequest;
       const user = sr.user!;
-      const serviceId = req.params.id;
+      const serviceId = req.params.id as string;
       const data = sr.validated!['body'] as CreateQuoteInput;
 
       const service = await prisma.service.findUnique({
@@ -135,7 +135,7 @@ serviceQuotesRouter.get('/:id/quotes', async (req, res, next) => {
   try {
     const sr = req as ServiceRequest;
     const user = sr.user!;
-    const serviceId = req.params.id;
+    const serviceId = req.params.id as string;
 
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
@@ -197,7 +197,7 @@ quotesAcceptRouter.post(
     try {
       const sr = req as ServiceRequest;
       const user = sr.user!;
-      const quoteId = req.params.id;
+      const quoteId = req.params.id as string;
 
       const quote = await prisma.quote.findUnique({
         where: { id: quoteId },
@@ -233,6 +233,7 @@ quotesAcceptRouter.post(
             data: {
               status: ServiceStatus.ACTIVE,
               acceptedQuoteId: quote.id,
+              assignedOperatorProfileId: quote.operatorProfileId,
             },
           });
           await tx.payment.create({
