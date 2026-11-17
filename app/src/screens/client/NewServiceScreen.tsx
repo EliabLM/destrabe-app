@@ -14,7 +14,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { createServiceSchema } from '@destrabe/shared';
 import { createService } from '../../lib/apiServices';
+import { apiErrorMessage, validationMessage } from '../../lib/inputErrors';
 import type { ClientStackParamList } from '../../navigation/ClientStack';
 
 type Nav = NativeStackNavigationProp<ClientStackParamList, 'NewService'>;
@@ -40,28 +42,26 @@ export default function NewServiceScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    const input = {
+      type,
+      originLat: parseFloat(originLat),
+      originLng: parseFloat(originLng),
+      destLat: type === 'TRANSFER' ? parseFloat(destLat) : undefined,
+      destLng: type === 'TRANSFER' ? parseFloat(destLng) : undefined,
+      description: description.trim() || undefined,
+      photoUrl: photoUrl.trim() || undefined,
+    };
+    const invalid = validationMessage(createServiceSchema, input);
+    if (invalid) {
+      Alert.alert('Datos inválidos', invalid);
+      return;
+    }
     setSubmitting(true);
     try {
-      await createService({
-        type,
-        originLat: parseFloat(originLat),
-        originLng: parseFloat(originLng),
-        destLat: type === 'TRANSFER' ? parseFloat(destLat) : undefined,
-        destLng: type === 'TRANSFER' ? parseFloat(destLng) : undefined,
-        description: description.trim() || undefined,
-        photoUrl: photoUrl.trim() || undefined,
-      });
+      await createService(input);
       nav.goBack();
     } catch (err: unknown) {
-      const error = err as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
-      const msg =
-        error?.response?.data?.message ??
-        error?.message ??
-        'Error al crear servicio';
-      Alert.alert('Error', msg);
+      Alert.alert('Error', apiErrorMessage(err, 'Error al crear servicio'));
     } finally {
       setSubmitting(false);
     }
@@ -190,6 +190,7 @@ export default function NewServiceScreen() {
             keyboardType="url"
             autoCapitalize="none"
           />
+          <Text style={styles.hint}>Opcional. Debe empezar por https://</Text>
 
           <TouchableOpacity
             style={[styles.button, !canSubmit && styles.buttonDisabled]}
