@@ -38,7 +38,7 @@ jobs:
         run: npm audit --omit=dev
 
   db:
-    name: Contratos DB, deriva y cobertura
+    name: Contratos DB
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://destrabe_ci:ci_only_password@localhost:5432/destrabe_ci?schema=public
