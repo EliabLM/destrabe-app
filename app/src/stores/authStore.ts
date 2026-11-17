@@ -3,6 +3,7 @@ import { UserRole, type AuthUser } from '@destrabe/shared';
 import { secureStorage } from '../lib/secureStorage';
 import { getMe } from '../lib/apiMe';
 import { otpSignOut } from '../lib/apiAuth';
+import { featuresStore } from './featuresStore';
 
 export interface AuthState {
   user: AuthUser | null;
@@ -32,6 +33,7 @@ export const authStore = create<AuthState>((set, get) => ({
     // CLIENT profile is lazy-created on first service; treat as ready.
     const profileReady = user.role === 'CLIENT';
     set({ token, user, role: user.role, hydrated: true, profileReady });
+    void featuresStore.getState().load(user.id);
   },
 
   logout: async () => {
@@ -43,6 +45,7 @@ export const authStore = create<AuthState>((set, get) => ({
   },
   clearLocalSession: async () => {
     await secureStorage.clearAll();
+    featuresStore.getState().reset();
     set({
       token: null,
       user: null,
@@ -59,6 +62,7 @@ export const authStore = create<AuthState>((set, get) => ({
       try {
         const { user, clientProfile, operatorProfile } = await getMe();
         const role = user.role as UserRole;
+        void featuresStore.getState().load(user.id);
         set({
           user: { id: user.id, phone: user.phoneNumber, role },
           role,

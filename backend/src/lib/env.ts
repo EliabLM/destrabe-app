@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  parseFeatureFlagsConfig,
+  type FeatureFlagsConfig,
+} from './featureFlagsConfig';
 
 /**
  * Defaults aplicados únicamente cuando `NODE_ENV === 'test'` (ver design §5).
@@ -79,9 +83,13 @@ const envSchema = z.object({
     .string()
     .regex(/^\d{6}$/, 'OTP_TEST_CODE debe tener 6 dígitos')
     .optional(),
+  // Issue #13 — feature flags por usuario (JSON; ver featureFlagsConfig.ts).
+  FEATURE_FLAGS: z.string().optional(),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type Env = Omit<z.infer<typeof envSchema>, 'FEATURE_FLAGS'> & {
+  FEATURE_FLAGS: FeatureFlagsConfig;
+};
 
 export function parseEnv(
   input: Record<string, string | undefined> = process.env,
@@ -163,7 +171,10 @@ export function parseEnv(
     throw new Error('OTP_TEST_CODE is required when OTP_TEST_NUMBERS is set');
   }
 
-  return parsed;
+  return {
+    ...parsed,
+    FEATURE_FLAGS: parseFeatureFlagsConfig(parsed.FEATURE_FLAGS),
+  };
 }
 
 // Singleton parsed from `process.env` para que auth.ts/plivo.ts importen `env`
