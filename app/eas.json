@@ -5,6 +5,7 @@
   },
   "build": {
     "development": {
+      "node": "26.13.1",
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
@@ -13,6 +14,7 @@
       }
     },
     "preview": {
+      "node": "26.13.1",
       "distribution": "internal",
       "environment": "preview",
       "android": {
