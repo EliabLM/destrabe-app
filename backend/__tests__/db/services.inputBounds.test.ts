@@ -49,6 +49,7 @@ vi.mock('../../src/lib/queue', () => ({
 const prisma = new PrismaClient();
 
 const TABLES = [
+  'SmsSendLog',
   'Review',
   'Payment',
   'Message',
