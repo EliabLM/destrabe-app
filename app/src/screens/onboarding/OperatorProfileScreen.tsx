@@ -13,7 +13,9 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { createOperatorProfileSchema } from '@destrabe/shared';
 import { createOperatorProfile } from '../../lib/apiOnboarding';
+import { apiErrorMessage, validationMessage } from '../../lib/inputErrors';
 import { authStore } from '../../stores/authStore';
 
 export default function OperatorProfileScreen() {
@@ -30,28 +32,26 @@ export default function OperatorProfileScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    const input = {
+      truckType: truckType.trim(),
+      licensePlate: licensePlate.trim(),
+      photoUrl: photoUrl.trim() || undefined,
+      available,
+      lastLatitude: latitude ? parseFloat(latitude) : undefined,
+      lastLongitude: longitude ? parseFloat(longitude) : undefined,
+    };
+    const invalid = validationMessage(createOperatorProfileSchema, input);
+    if (invalid) {
+      Alert.alert('Datos inválidos', invalid);
+      return;
+    }
     setSubmitting(true);
     try {
-      await createOperatorProfile({
-        truckType: truckType.trim(),
-        licensePlate: licensePlate.trim(),
-        photoUrl: photoUrl.trim() || undefined,
-        available,
-        lastLatitude: latitude ? parseFloat(latitude) : undefined,
-        lastLongitude: longitude ? parseFloat(longitude) : undefined,
-      });
+      await createOperatorProfile(input);
       // Profile created → RootStack re-renders to OperatorStack
       authStore.setState({ profileReady: true });
     } catch (err: unknown) {
-      const error = err as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
-      const msg =
-        error?.response?.data?.message ??
-        error?.message ??
-        'Error al crear perfil';
-      Alert.alert('Error', msg);
+      Alert.alert('Error', apiErrorMessage(err, 'Error al crear perfil'));
     } finally {
       setSubmitting(false);
     }
@@ -99,6 +99,7 @@ export default function OperatorProfileScreen() {
             keyboardType="url"
             autoCapitalize="none"
           />
+          <Text style={styles.hint}>Opcional. Debe empezar por https://</Text>
 
           <View style={styles.switchRow}>
             <Text style={styles.label}>Disponible</Text>
