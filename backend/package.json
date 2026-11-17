@@ -6,7 +6,8 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "prisma migrate deploy --schema=prisma/schema.prisma && node dist/server.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "flags:check": "tsx src/scripts/checkFeatureFlags.ts"
   },
   "dependencies": {
     "@destrabe/shared": "*",
