@@ -48,7 +48,8 @@ const envSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
   // T1 — CORS origin for Express cors() middleware (cambio-008 / D4).
-  // Default '*' for Demo; configure specific origin(s) for production.
+  // '*' solo en desarrollo local y pruebas: en producción es obligatorio y no
+  // puede ser '*' (DCC-17).
   CORS_ORIGIN: z.string().default('*'),
   // DCC-05 — Proxies de confianza para Express (`trust proxy`): lista de IP o
   // CIDR (o los alias de proxy-addr `loopback`, `linklocal`, `uniquelocal`).
@@ -125,6 +126,10 @@ export function parseEnv(
       if (input[name] !== undefined) {
         throw new Error(`${name} must not be set in production`);
       }
+    }
+    // DCC-17: en producción la API no acepta peticiones de cualquier origen.
+    if (input.CORS_ORIGIN?.trim() === '*') {
+      throw new Error('CORS_ORIGIN must not be "*" in production');
     }
   }
   const parsed = envSchema.parse(withSandboxDefault);
