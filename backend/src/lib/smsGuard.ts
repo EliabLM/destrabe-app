@@ -4,6 +4,7 @@ import { APIError } from 'better-auth/api';
 import { isColombianMobile } from '@destrabe/shared';
 import { env } from './env';
 import { maskPhone } from './logMask';
+import { isOtpDeliveryRestricted } from './otpDelivery';
 import { prisma } from './prisma';
 
 /**
@@ -166,7 +167,14 @@ function invalidPhoneError(): APIError {
   });
 }
 
-/** Comprueba sin registrar nada. Lanza `APIError` 400/429/503. */
+function restrictedLoginError(): APIError {
+  return new APIError('FORBIDDEN', {
+    code: 'OTP_LOGIN_RESTRICTED',
+    message: 'Por ahora el ingreso está limitado a cuentas de prueba.',
+  });
+}
+
+/** Comprueba sin registrar nada. Lanza `APIError` 400/403/429/503. */
 export async function checkSmsAllowed(
   phone: unknown,
   ip: string,
@@ -174,6 +182,7 @@ export async function checkSmsAllowed(
   if (!isColombianMobile(phone)) throw invalidPhoneError();
   const phoneStr = phone as string;
   if (isOtpTestNumber(phoneStr)) return;
+  if (isOtpDeliveryRestricted(phoneStr)) throw restrictedLoginError();
   const { phoneHash, ipHash } = smsHashes(phoneStr, ip);
   const counts = await countSends(prisma, phoneHash, ipHash);
   const reason = evaluateSmsLimits(counts, limitsFromEnv());
@@ -186,6 +195,7 @@ export async function checkSmsAllowed(
  */
 export async function reserveSmsSend(phone: string, ip: string): Promise<void> {
   if (!isColombianMobile(phone)) throw invalidPhoneError();
+  if (isOtpDeliveryRestricted(phone)) throw restrictedLoginError();
   const { phoneHash, ipHash } = smsHashes(phone, ip);
   let reason: SmsLimitReason | null;
   try {

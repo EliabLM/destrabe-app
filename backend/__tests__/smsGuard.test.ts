@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { envMock } = vi.hoisted(() => ({
   envMock: {
@@ -6,6 +6,9 @@ const { envMock } = vi.hoisted(() => ({
     OTP_TEST_NUMBERS: ['+573000000001'],
     OTP_TEST_CODE: '123456' as string | undefined,
     BETTER_AUTH_SECRET: 'x'.repeat(32),
+    OTP_LOG_NUMBERS: ['+573000000009'],
+    PLIVO_AUTH_ID: undefined as string | undefined,
+    PLIVO_AUTH_TOKEN: undefined as string | undefined,
   },
 }));
 vi.mock('../src/lib/env', () => ({ env: envMock }));
@@ -16,6 +19,7 @@ import {
   clientIpFromHeaders,
   evaluateSmsLimits,
   isOtpTestNumber,
+  reserveSmsSend,
   smsHashes,
   UNKNOWN_IP,
   type SmsCounts,
@@ -109,4 +113,45 @@ describe('utilidades', () => {
       );
     },
   );
+});
+
+describe('acceso restringido sin proveedor de SMS (DCC-22)', () => {
+  const restricted = {
+    statusCode: 403,
+    body: {
+      code: 'OTP_LOGIN_RESTRICTED',
+      message: 'Por ahora el ingreso está limitado a cuentas de prueba.',
+    },
+  };
+
+  afterEach(() => {
+    envMock.NODE_ENV = 'test';
+    envMock.PLIVO_AUTH_ID = undefined;
+    envMock.PLIVO_AUTH_TOKEN = undefined;
+  });
+
+  it('en producción sin Plivo rechaza los números fuera de OTP_LOG_NUMBERS antes de tocar la BD', async () => {
+    envMock.NODE_ENV = 'production';
+    // `prisma` es un objeto vacío: si se llegara a la BD, fallaría con otro error.
+    await expect(
+      checkSmsAllowed('+573001234567', '203.0.113.7'),
+    ).rejects.toMatchObject(restricted);
+    await expect(
+      reserveSmsSend('+573001234567', '203.0.113.7'),
+    ).rejects.toMatchObject(restricted);
+  });
+
+  it('no rechaza los números de OTP_LOG_NUMBERS ni a nadie si hay Plivo o fuera de producción', async () => {
+    const { isOtpDeliveryRestricted } = await import('../src/lib/otpDelivery');
+    envMock.NODE_ENV = 'production';
+    expect(isOtpDeliveryRestricted('+573000000009')).toBe(false);
+    expect(isOtpDeliveryRestricted('+573001234567')).toBe(true);
+    envMock.PLIVO_AUTH_ID = 'MAXXXXXXXXXXXXXXXXXX';
+    envMock.PLIVO_AUTH_TOKEN = 'auth-token';
+    expect(isOtpDeliveryRestricted('+573001234567')).toBe(false);
+    envMock.PLIVO_AUTH_ID = undefined;
+    envMock.PLIVO_AUTH_TOKEN = undefined;
+    envMock.NODE_ENV = 'test';
+    expect(isOtpDeliveryRestricted('+573001234567')).toBe(false);
+  });
 });

@@ -1,5 +1,6 @@
 import { env } from './env';
 import { maskPhone } from './logMask';
+import { isOtpLogNumber, isSmsProviderConfigured } from './otpDelivery';
 
 /**
  * Cliente SMS de Plivo sin SDK (DCC-04).
@@ -11,6 +12,9 @@ import { maskPhone } from './logMask';
  * Sin `PLIVO_AUTH_ID`/`PLIVO_AUTH_TOKEN`: fuera de producción `sendOtp`
  * registra el OTP (con el teléfono enmascarado) y NO llama a Plivo; en
  * producción falla de forma explícita y nunca imprime el código (DCC-05).
+ *
+ * Números de `OTP_LOG_NUMBERS` (demo, DCC-22): en cualquier entorno, el código
+ * se escribe en el log con el teléfono enmascarado y no se envía SMS.
  *
  * Los errores nunca incluyen el texto del mensaje ni el destinatario.
  */
@@ -62,7 +66,13 @@ export async function sendSms(dst: string, text: string): Promise<void> {
 }
 
 export async function sendOtp(phone: string, code: string): Promise<void> {
-  if (!env.PLIVO_AUTH_ID || !env.PLIVO_AUTH_TOKEN) {
+  if (isOtpLogNumber(phone)) {
+    // Demo (DCC-22): solo para los números autorizados. Nunca se registra el
+    // código de un número que no esté en la lista.
+    console.log(`[otp-demo] OTP for ${maskPhone(phone)}: ${code}`);
+    return;
+  }
+  if (!isSmsProviderConfigured()) {
     if (env.NODE_ENV === 'production') {
       throw new Error('Plivo credentials are not configured');
     }
