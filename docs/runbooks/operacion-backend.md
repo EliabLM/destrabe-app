@@ -10,7 +10,7 @@
 
 Coolify debe usar `/health/live`: si la BD o Redis fallan un momento, el contenedor no se reinicia en bucle; `/health/ready` responde 503 y lo deja ver. El cambio en Coolify lo hace `ops` con permiso del usuario.
 
-Las sondas que responden bien no se registran en el log.
+Las sondas que responden bien no se registran en el log; si una falla (por ejemplo, `/health/ready` con 503), sí queda la línea.
 
 ## Logs
 

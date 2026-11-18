@@ -18,7 +18,8 @@ function pathOnly(url: string | undefined): string | undefined {
 /**
  * Middleware de logs por petición (DCC-17): asigna `req.id`, lo devuelve en
  * `X-Request-Id` y registra una línea JSON al terminar. No registra cabeceras,
- * query ni cuerpo. Las sondas de salud que responden bien no se registran.
+ * query ni cuerpo. Las sondas de salud que responden bien no se registran; las
+ * que fallan (4xx/5xx) sí.
  */
 export function createRequestLogger(logger: Logger) {
   return pinoHttp({
@@ -32,12 +33,11 @@ export function createRequestLogger(logger: Logger) {
       res.setHeader(REQUEST_ID_HEADER, id);
       return id;
     },
-    autoLogging: {
-      ignore: (req) => pathOnly(req.url)?.startsWith('/health') ?? false,
-    },
-    customLogLevel(_req, res, err) {
+    customLogLevel(req, res, err) {
       if (err || res.statusCode >= 500) return 'error';
       if (res.statusCode >= 400) return 'warn';
+      // Una sonda que responde bien no aporta nada al log; una que falla sí.
+      if (pathOnly(req.url)?.startsWith('/health')) return 'silent';
       return 'info';
     },
     serializers: {
