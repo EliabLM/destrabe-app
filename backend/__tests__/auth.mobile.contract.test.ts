@@ -33,7 +33,6 @@ vi.mock('../src/lib/smsGuard', async (importOriginal) => ({
   checkSmsAllowed: vi.fn(async () => {}),
   reserveSmsSend: vi.fn(async () => {}),
 }));
-vi.mock('../src/lib/queue', () => ({ enqueueServiceExpiry: vi.fn() }));
 vi.mock('../../app/src/stores/authStore', () => ({
   authStore: {
     getState: () => ({

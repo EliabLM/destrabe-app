@@ -15,7 +15,6 @@ import {
 import { prisma } from '../lib/prisma';
 import { env } from '../lib/env';
 import { assertTransition } from '../services/serviceMachine';
-import { enqueueServiceExpiry } from '../lib/queue';
 import { PaymentPendingError } from '../services/paymentGateway';
 import { isOpenForQuotes, toOperatorPreview } from '../services/serviceAccess';
 
@@ -31,7 +30,8 @@ type ServiceRequest = AuthedRequest & ValidatedRequest;
  * 5 endpoints bajo requireAuth:
  *   POST  /services              — create (CLIENT role)
  *   GET   /services              — own paginated list (CLIENT role)
- *   GET   /services/nearby       — radius search (OPERATOR role, PostGIS ST_DWithin)
+ *   GET   /services/nearby       — radius search (OPERATOR role, PostGIS ST_DWithin):
+ *                                  PENDING/QUOTED sin expirar + quoteCount
  *   GET   /services/:id          — get by id (owner full / assigned operator /
  *                                  operator preview if open for quotes / other 404)
  *   PATCH /services/:id/status   — update status (owner / assigned operator, FSM)
@@ -98,13 +98,8 @@ servicesRouter.post(
         },
       });
 
-      // REQ-002: Enqueue expiry job (skip in test env to avoid Redis dependency)
-      if (env.NODE_ENV !== 'test') {
-        await enqueueServiceExpiry(
-          service.id,
-          env.SERVICE_TIMEOUT_MINUTES * 60 * 1000,
-        );
-      }
+      // DCC-07: el barrido periódico (jobs/serviceExpiry.job.ts) lo cancela
+      // al vencer `expiresAt`; no hace falta programar nada al crearlo.
 
       // REQ-002: 201 response
       res.status(201).json({
@@ -242,9 +237,13 @@ servicesRouter.get(
         (radiusKm ?? Math.min(env.NEARBY_RADIUS_KM, NEARBY_MAX_RADIUS_KM)) *
         1000;
 
-      // REQ-003 / REQ-010: PostGIS ST_DWithin via $queryRaw with binds.
-      // Requires PostGIS extension (applied in T8 migration).
-      // No previewFeatures — raw SQL with parameterized binds.
+      // DCC-07: los servicios que este operador ya cotizó no se repiten.
+      const operatorProfileId = await findOperatorProfileId(sr.user!.id);
+
+      // REQ-003 / DCC-07: PostGIS ST_DWithin con binds. Varias ofertas por
+      // servicio: PENDING y QUOTED sin expirar, con su número de cotizaciones.
+      // El filtro de estado y la expresión del punto coinciden con el índice
+      // parcial "Service_open_origin_geog_idx" (migración DCC-07).
       const services = await prisma.$queryRaw<
         Array<{
           id: string;
@@ -259,27 +258,40 @@ servicesRouter.get(
           expiresAt: Date;
           createdAt: Date;
           updatedAt: Date;
+          quoteCount: number;
         }>
       >`
         SELECT
-          id, type, status, "originLat", "originLng",
-          "destLat", "destLng", description, "photoUrl",
-          "expiresAt", "createdAt", "updatedAt"
-        FROM "Service"
+          s.id, s.type, s.status, s."originLat", s."originLng",
+          s."destLat", s."destLng", s.description, s."photoUrl",
+          s."expiresAt", s."createdAt", s."updatedAt",
+          (SELECT COUNT(*)::int FROM "Quote" q WHERE q."serviceId" = s.id)
+            AS "quoteCount"
+        FROM "Service" s
         WHERE
           ST_DWithin(
-            ST_MakePoint("originLng", "originLat")::geography,
+            ST_MakePoint(s."originLng", s."originLat")::geography,
             ST_MakePoint(${lng}::float8, ${lat}::float8)::geography,
             ${radiusMeters}::float8
           )
-          AND status = 'PENDING'::"ServiceStatus"
-          AND "expiresAt" > NOW()
-        ORDER BY "createdAt" DESC
+          AND s.status IN ('PENDING'::"ServiceStatus", 'QUOTED'::"ServiceStatus")
+          AND s."expiresAt" > NOW()
+          AND NOT EXISTS (
+            SELECT 1 FROM "Quote" mine
+            WHERE mine."serviceId" = s.id
+              AND mine."operatorProfileId" = ${operatorProfileId}::text
+          )
+        ORDER BY s."createdAt" DESC
         LIMIT ${NEARBY_MAX_RESULTS}
       `;
 
       // REQ-003 / DCC-02: vista previa (coordenadas aproximadas, sin foto)
-      res.json(services.map(toOperatorPreview));
+      res.json(
+        services.map((s) => ({
+          ...toOperatorPreview(s),
+          quoteCount: s.quoteCount,
+        })),
+      );
     } catch (err) {
       next(err);
     }

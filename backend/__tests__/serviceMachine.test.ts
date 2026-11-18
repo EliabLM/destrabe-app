@@ -55,11 +55,17 @@ const LEGAL: TransitionCase[] = [
     actor: 'CLIENT',
     expected: true,
   },
-  // QUOTED → CANCELLED: CLIENT
+  // QUOTED → CANCELLED: CLIENT, system (expiración, DCC-07)
   {
     from: ServiceStatus.QUOTED,
     to: ServiceStatus.CANCELLED,
     actor: 'CLIENT',
+    expected: true,
+  },
+  {
+    from: ServiceStatus.QUOTED,
+    to: ServiceStatus.CANCELLED,
+    actor: 'system',
     expected: true,
   },
   // ACTIVE → COMPLETED: OPERATOR

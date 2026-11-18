@@ -16,7 +16,6 @@ import {
 const TEST_DEFAULTS = {
   BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret-32chars',
   BETTER_AUTH_URL: 'http://localhost:3000',
-  REDIS_URL: 'redis://localhost:6379',
   PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
 } as const;
 
@@ -26,8 +25,9 @@ const envSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().optional(),
-  REDIS_URL: z.string().optional(),
   SERVICE_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(15),
+  // DCC-07 — Cada cuántos segundos se cancelan los servicios vencidos.
+  SERVICE_EXPIRY_SWEEP_SECONDS: z.coerce.number().int().positive().default(60),
   NEARBY_RADIUS_KM: z.coerce.number().positive().default(5),
   BETTER_AUTH_SECRET: z
     .string()
@@ -119,7 +119,6 @@ export function parseEnv(
             input.BETTER_AUTH_SECRET ?? TEST_DEFAULTS.BETTER_AUTH_SECRET,
           BETTER_AUTH_URL:
             input.BETTER_AUTH_URL ?? TEST_DEFAULTS.BETTER_AUTH_URL,
-          REDIS_URL: input.REDIS_URL ?? TEST_DEFAULTS.REDIS_URL,
           PAYMENT_WEBHOOK_TOKEN:
             input.PAYMENT_WEBHOOK_TOKEN ?? TEST_DEFAULTS.PAYMENT_WEBHOOK_TOKEN,
         }
@@ -144,15 +143,6 @@ export function parseEnv(
     }
   }
   const parsed = envSchema.parse(withSandboxDefault);
-
-  // REDIS_URL is required in non-test environments
-  if (nodeEnv !== 'test' && !input.REDIS_URL) {
-    throw new Error(
-      'REDIS_URL is required in ' +
-        nodeEnv +
-        ' environment. Set REDIS_URL in your .env file.',
-    );
-  }
 
   // PAYMENT_WEBHOOK_TOKEN is required in non-test environments
   if (nodeEnv !== 'test' && !input.PAYMENT_WEBHOOK_TOKEN) {

@@ -11,7 +11,6 @@ describe('parseEnv', () => {
   it('defaults NODE_ENV to development when absent', () => {
     const env = parseEnv({
       PORT: '3000',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: 'x'.repeat(32),
       BETTER_AUTH_URL: 'http://localhost:3000',
       PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
@@ -45,7 +44,6 @@ describe('parseEnv — auth vars (REQ-004)', () => {
   it('sets BETTER_AUTH_SECRET and BETTER_AUTH_URL when provided (valid)', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
@@ -57,7 +55,6 @@ describe('parseEnv — auth vars (REQ-004)', () => {
   it('keeps PLIVO_* as string | undefined when not provided', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
@@ -70,7 +67,6 @@ describe('parseEnv — auth vars (REQ-004)', () => {
   it('keeps PLIVO_* values when provided', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
@@ -126,7 +122,7 @@ describe('parseEnv — auth vars (REQ-004)', () => {
  * T10 — Ampliación tests env vars de servicio (REQ-008)
  *
  * Valida:
- *  - REDIS_URL requerida en dev/prod, opcional en test (default aplicado)
+ *  - REDIS_URL ya no existe (DCC-19); SERVICE_EXPIRY_SWEEP_SECONDS default 60
  *  - SERVICE_TIMEOUT_MINUTES default 15
  *  - NEARBY_RADIUS_KM default 5
  *
@@ -136,46 +132,32 @@ describe('parseEnv — service env vars T10 (REQ-008)', () => {
   const VALID_SECRET = 'a'.repeat(32);
   const VALID_URL = 'http://localhost:3000';
 
-  it('allows REDIS_URL to be absent in test mode (uses default)', () => {
+  it('does not require REDIS_URL in production (DCC-19)', () => {
     const env = parseEnv({
-      NODE_ENV: 'test',
-      BETTER_AUTH_SECRET: VALID_SECRET,
-      BETTER_AUTH_URL: VALID_URL,
-    });
-    expect(env.REDIS_URL).toBe('redis://localhost:6379');
-  });
-
-  it('throws mentioning REDIS_URL when absent in development mode', () => {
-    expect(() =>
-      parseEnv({
-        NODE_ENV: 'development',
-        BETTER_AUTH_SECRET: VALID_SECRET,
-        BETTER_AUTH_URL: VALID_URL,
-      }),
-    ).toThrow(/REDIS_URL/);
-  });
-
-  it('throws mentioning REDIS_URL when absent in production mode', () => {
-    expect(() =>
-      parseEnv({
-        NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
-        CORS_ORIGIN: 'https://app.example.invalid',
-        BETTER_AUTH_SECRET: VALID_SECRET,
-        BETTER_AUTH_URL: VALID_URL,
-      }),
-    ).toThrow(/REDIS_URL/);
-  });
-
-  it('accepts REDIS_URL when explicitly provided in development', () => {
-    const env = parseEnv({
-      NODE_ENV: 'development',
-      REDIS_URL: 'redis://custom:6379',
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+      CORS_ORIGIN: 'https://app.example.invalid',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
     });
-    expect(env.REDIS_URL).toBe('redis://custom:6379');
+    expect(env).not.toHaveProperty('REDIS_URL');
+  });
+
+  it('defaults SERVICE_EXPIRY_SWEEP_SECONDS to 60 and accepts overrides', () => {
+    const base = {
+      NODE_ENV: 'test',
+      BETTER_AUTH_SECRET: VALID_SECRET,
+      BETTER_AUTH_URL: VALID_URL,
+    };
+    expect(parseEnv(base).SERVICE_EXPIRY_SWEEP_SECONDS).toBe(60);
+    expect(
+      parseEnv({ ...base, SERVICE_EXPIRY_SWEEP_SECONDS: '15' })
+        .SERVICE_EXPIRY_SWEEP_SECONDS,
+    ).toBe(15);
+    expect(() =>
+      parseEnv({ ...base, SERVICE_EXPIRY_SWEEP_SECONDS: '0' }),
+    ).toThrow();
   });
 
   it('defaults SERVICE_TIMEOUT_MINUTES to 15 when absent', () => {
@@ -302,7 +284,6 @@ describe('parseEnv — payment env vars T2 (cambio-006)', () => {
     expect(() =>
       parseEnv({
         NODE_ENV: 'development',
-        REDIS_URL: 'redis://localhost:6379',
         BETTER_AUTH_SECRET: VALID_SECRET,
         BETTER_AUTH_URL: VALID_URL,
       }),
@@ -315,7 +296,6 @@ describe('parseEnv — payment env vars T2 (cambio-006)', () => {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
         CORS_ORIGIN: 'https://app.example.invalid',
-        REDIS_URL: 'redis://localhost:6379',
         BETTER_AUTH_SECRET: VALID_SECRET,
         BETTER_AUTH_URL: VALID_URL,
       }),
@@ -326,7 +306,6 @@ describe('parseEnv — payment env vars T2 (cambio-006)', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
       PAYMENT_WEBHOOK_TOKEN: 'super-secret-token',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
     });
@@ -354,7 +333,6 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
       NODE_ENV: 'production',
       DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
       CORS_ORIGIN: 'https://app.example.invalid',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'some-token',
@@ -374,7 +352,6 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
         CORS_ORIGIN: 'https://app.example.invalid',
-        REDIS_URL: 'redis://localhost:6379',
         BETTER_AUTH_SECRET: VALID_SECRET,
         BETTER_AUTH_URL: VALID_URL,
         PAYMENT_WEBHOOK_TOKEN: 'some-token',
@@ -388,7 +365,6 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
   it('defaults MP_SANDBOX to true in development', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'some-token',
@@ -414,7 +390,6 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
       NODE_ENV: 'production',
       DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
       CORS_ORIGIN: 'https://app.example.invalid',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'some-token',
@@ -429,7 +404,6 @@ describe('parseEnv — MP env vars T2 (REQ-MP-ENV)', () => {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
         CORS_ORIGIN: 'https://app.example.invalid',
-        REDIS_URL: 'redis://localhost:6379',
         BETTER_AUTH_SECRET: VALID_SECRET,
         BETTER_AUTH_URL: VALID_URL,
         PAYMENT_WEBHOOK_TOKEN: 'some-token',
@@ -466,7 +440,6 @@ describe('parseEnv — CORS_ORIGIN (cambio-008 T1)', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
       CORS_ORIGIN: 'https://app.destrabe.com',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
@@ -478,7 +451,6 @@ describe('parseEnv — CORS_ORIGIN (cambio-008 T1)', () => {
     const env = parseEnv({
       NODE_ENV: 'development',
       CORS_ORIGIN: '*',
-      REDIS_URL: 'redis://localhost:6379',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
       PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',

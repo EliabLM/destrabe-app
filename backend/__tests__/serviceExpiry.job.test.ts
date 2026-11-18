@@ -1,28 +1,24 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ServiceStatus } from '@destrabe/shared';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 /**
- * T6 — queue.ts + serviceExpiry.job (REQ-006)
+ * DCC-07 / DCC-19 — expiración de servicios sin Redis.
  *
- * Unit tests for:
- *  - `expirePendingService(serviceId)` — PENDING → persist CANCELLED + notify;
- *    non-PENDING → idempotent no-op
- *  - `enqueueServiceExpiry(serviceId, delayMs)` — spies on `queue.add()`
+ *  - `expireOverdueServices()` — notifica cada servicio cancelado, después
+ *    del commit; si otra réplica tiene el lock, no hace nada.
+ *  - `startServiceExpirySweeper()` — corre al arrancar y cada intervalo, sin
+ *    solaparse, y sigue tras un error.
+ *
+ * El UPDATE real contra Postgres está en `db/services.expiry.test.ts`.
  */
 
-// ─── Hoisted mocks ───────────────────────────────────────────────────────────
-
-const prismaFindUniqueMock = vi.hoisted(() => vi.fn());
-const prismaUpdateMock = vi.hoisted(() => vi.fn());
+const queryRawMock = vi.hoisted(() => vi.fn());
 const notifyClientMock = vi.hoisted(() => vi.fn());
-const queueAddMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('../src/lib/prisma', () => ({
   prisma: {
-    service: {
-      findUnique: prismaFindUniqueMock,
-      update: prismaUpdateMock,
-    },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({ $queryRaw: queryRawMock }),
+    ),
   },
 }));
 
@@ -30,125 +26,109 @@ vi.mock('../src/lib/notifications', () => ({
   notifyClient: notifyClientMock,
 }));
 
-// `function` (no flecha): Vitest 4 exige mocks construibles con `new`.
-vi.mock('bullmq', () => ({
-  Queue: vi.fn(function () {
-    return { add: queueAddMock };
-  }),
-  Worker: vi.fn(function () {
-    return { run: vi.fn(), close: vi.fn() };
-  }),
-}));
+import {
+  expireOverdueServices,
+  startServiceExpirySweeper,
+} from '../src/jobs/serviceExpiry.job';
 
-vi.mock('ioredis', () => ({
-  default: vi.fn(function () {
-    return {};
-  }),
-}));
-
-// ─── expirePendingService ────────────────────────────────────────────────────
-
-describe('expirePendingService (REQ-006)', () => {
+describe('expireOverdueServices', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('updates PENDING service to CANCELLED and calls notifyClient', async () => {
-    prismaFindUniqueMock.mockResolvedValue({
-      id: 'svc-1',
-      status: ServiceStatus.PENDING,
-      clientProfileId: 'cp-456',
-    });
-    prismaUpdateMock.mockResolvedValue({
-      id: 'svc-1',
-      status: ServiceStatus.CANCELLED,
-    });
+  it('notifies the client of every cancelled service', async () => {
+    queryRawMock
+      .mockResolvedValueOnce([{ locked: true }])
+      .mockResolvedValueOnce([
+        { id: 'svc-1', clientProfileId: 'cp-1' },
+        { id: 'svc-2', clientProfileId: 'cp-2' },
+      ]);
 
-    const { expirePendingService } =
-      await import('../src/jobs/serviceExpiry.job');
-    await expirePendingService('svc-1');
+    await expect(expireOverdueServices()).resolves.toBe(2);
 
-    // Should assert transition (PENDING → CANCELLED by system) then persist
-    expect(prismaFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: 'svc-1' },
-    });
-    expect(prismaUpdateMock).toHaveBeenCalledWith({
-      where: { id: 'svc-1' },
-      data: { status: ServiceStatus.CANCELLED },
-    });
+    expect(queryRawMock).toHaveBeenCalledTimes(2);
+    expect(notifyClientMock).toHaveBeenCalledTimes(2);
     expect(notifyClientMock).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'svc-1', clientProfileId: 'cp-456' }),
+      { id: 'svc-1', clientProfileId: 'cp-1' },
+      'expired',
+    );
+    expect(notifyClientMock).toHaveBeenCalledWith(
+      { id: 'svc-2', clientProfileId: 'cp-2' },
       'expired',
     );
   });
 
-  it('does nothing when service is already CANCELLED (idempotent)', async () => {
-    prismaFindUniqueMock.mockResolvedValue({
-      id: 'svc-2',
-      status: ServiceStatus.CANCELLED,
-      clientProfileId: 'cp-789',
-    });
+  it('does nothing when another replica holds the lock', async () => {
+    queryRawMock.mockResolvedValueOnce([{ locked: false }]);
 
-    const { expirePendingService } =
-      await import('../src/jobs/serviceExpiry.job');
-    await expirePendingService('svc-2');
+    await expect(expireOverdueServices()).resolves.toBe(0);
 
-    expect(prismaUpdateMock).not.toHaveBeenCalled();
-    expect(notifyClientMock).not.toHaveBeenCalled();
-  });
-
-  it('does nothing when service does not exist (idempotent)', async () => {
-    prismaFindUniqueMock.mockResolvedValue(null);
-
-    const { expirePendingService } =
-      await import('../src/jobs/serviceExpiry.job');
-    await expirePendingService('svc-nonexistent');
-
-    expect(prismaUpdateMock).not.toHaveBeenCalled();
-    expect(notifyClientMock).not.toHaveBeenCalled();
-  });
-
-  it('does nothing when service is ACTIVE (idempotent)', async () => {
-    prismaFindUniqueMock.mockResolvedValue({
-      id: 'svc-3',
-      status: ServiceStatus.ACTIVE,
-    });
-
-    const { expirePendingService } =
-      await import('../src/jobs/serviceExpiry.job');
-    await expirePendingService('svc-3');
-
-    expect(prismaUpdateMock).not.toHaveBeenCalled();
+    expect(queryRawMock).toHaveBeenCalledTimes(1); // no UPDATE
     expect(notifyClientMock).not.toHaveBeenCalled();
   });
 });
 
-// ─── enqueueServiceExpiry ────────────────────────────────────────────────────
-
-describe('enqueueServiceExpiry (REQ-006)', () => {
+describe('startServiceExpirySweeper', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.useFakeTimers();
   });
 
-  it('calls queue.add with serviceExpiry name, serviceId data, and delay', async () => {
-    const { enqueueServiceExpiry } = await import('../src/lib/queue');
-    await enqueueServiceExpiry('svc-1', 900_000);
-
-    expect(queueAddMock).toHaveBeenCalledWith(
-      'serviceExpiry',
-      { serviceId: 'svc-1' },
-      { delay: 900_000 },
-    );
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('allows different delays', async () => {
-    const { enqueueServiceExpiry } = await import('../src/lib/queue');
-    await enqueueServiceExpiry('svc-2', 60_000);
+  it('runs at start and then on every interval until stopped', async () => {
+    const run = vi.fn().mockResolvedValue(0);
+    const sweeper = startServiceExpirySweeper(1000, run);
+    expect(run).toHaveBeenCalledTimes(1);
 
-    expect(queueAddMock).toHaveBeenCalledWith(
-      'serviceExpiry',
-      { serviceId: 'svc-2' },
-      { delay: 60_000 },
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(run).toHaveBeenCalledTimes(4);
+
+    sweeper.stop();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(run).toHaveBeenCalledTimes(4);
+  });
+
+  it('skips a tick while the previous run is still going', async () => {
+    let finish: () => void = () => {};
+    const run = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
     );
+    const sweeper = startServiceExpirySweeper(1000, run);
+
+    await vi.advanceTimersByTimeAsync(2500);
+    expect(run).toHaveBeenCalledTimes(1);
+
+    finish();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(run).toHaveBeenCalledTimes(2);
+    sweeper.stop();
+  });
+
+  it('logs a failure and keeps sweeping', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const run = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('db down'))
+      .mockRejectedValueOnce('boom')
+      .mockResolvedValue(0);
+    const sweeper = startServiceExpirySweeper(1000, run);
+
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(errorSpy).toHaveBeenCalledWith({
+      event: 'service_expiry_failed',
+      error: 'db down',
+    });
+    expect(errorSpy).toHaveBeenCalledWith({
+      event: 'service_expiry_failed',
+      error: 'boom',
+    });
+    sweeper.stop();
+    errorSpy.mockRestore();
   });
 });

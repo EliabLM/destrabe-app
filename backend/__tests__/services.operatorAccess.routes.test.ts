@@ -46,7 +46,6 @@ vi.mock('../src/lib/prisma', () => ({
     $transaction: m.transaction,
   },
 }));
-vi.mock('../src/lib/queue', () => ({ enqueueServiceExpiry: vi.fn() }));
 vi.mock('../src/lib/notifications', () => ({ notifyClient: vi.fn() }));
 
 const FUTURE = new Date(Date.now() + 10 * 60_000);

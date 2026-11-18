@@ -14,7 +14,7 @@ import { ServiceStatus, ServiceType, UserRole } from '@destrabe/shared';
 /**
  * T7 — Quotes lifecycle db smoke (REQ-001..007).
  *
- * Requiere Postgres+PostGIS+Redis up (`npm run db:up`). Ejercicio end-to-end
+ * Requiere Postgres+PostGIS up (`npm run db:up`). Ejercicio end-to-end
  * de los 3 endpoints de quotes contra la DB real, autenticando CLIENT y
  * OPERATOR vía OTP (mock Plivo) y reutilizando el patrón de
  * `services.lifecycle.test.ts` (cambio-004).
@@ -36,10 +36,6 @@ const { capturedSendOtps, sendOtpMock } = vi.hoisted(() => ({
   }),
 }));
 vi.mock('../../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
-vi.mock('../../src/lib/queue', () => ({
-  enqueueServiceExpiry: vi.fn().mockResolvedValue(undefined),
-  createWorker: vi.fn(),
-}));
 
 // ─── Prisma dedicado para limpieza/siembra ───────────────────────────────────
 
