@@ -133,22 +133,26 @@ PENDING ──system──▶ QUOTED ──CLIENT──▶ ACTIVE ──OPERATOR
 
 ## Cotizaciones (quotes/offers)
 
-Flujo de cotizaciones que cierra el ciclo Demo core: el operador cotiza sobre un servicio `PENDING`/`QUOTED`, el cliente acepta la mejor oferta → `ACTIVE`. Pago como **stub** (`commission=0`) para cambio-006 (Mercado Pago real).
+Flujo de cotizaciones que cierra el ciclo Demo core: el operador cotiza sobre un servicio `PENDING`/`QUOTED`, el cliente acepta la mejor oferta → `ACTIVE` y se crea el `Payment` pendiente con la comisión ya calculada.
 
 ### Endpoints
 
-| Método | Ruta                   | Rol      | Efecto                                                                      |
-| ------ | ---------------------- | -------- | --------------------------------------------------------------------------- |
-| POST   | `/services/:id/quotes` | OPERATOR | Crea `Quote`; si service `PENDING` → `QUOTED` (system); notifica cliente    |
-| GET    | `/services/:id/quotes` | auth     | Dueño/admin: todas + datos operador · Operador: solo las suyas · Ajeno: 404 |
-| POST   | `/quotes/:id/accept`   | CLIENT   | `QUOTED → ACTIVE` (CLIENT); setea `acceptedQuoteId`; crea `Payment` stub    |
+| Método | Ruta                   | Rol      | Efecto                                                                       |
+| ------ | ---------------------- | -------- | ---------------------------------------------------------------------------- |
+| POST   | `/services/:id/quotes` | OPERATOR | Crea `Quote` (201) o reemplaza la suya (200); `PENDING` → `QUOTED`; notifica |
+| GET    | `/services/:id/quotes` | auth     | Dueño/admin: todas + datos operador · Operador: solo las suyas · Ajeno: 404  |
+| POST   | `/quotes/:id/accept`   | CLIENT   | `QUOTED → ACTIVE` (CLIENT); setea `acceptedQuoteId`; crea `Payment` stub     |
 
 ### Reglas clave
 
 - **OperatorProfile requerido** para cotizar (422 `OPERATOR_PROFILE_REQUIRED` si no tiene). No hay lazy upsert — `truckType`/`licensePlate` son campos required.
-- **Múltiples operadores** pueden cotizar sobre un servicio `QUOTED` (la primera cotización transiciona `PENDING → QUOTED`; las subsequentes no transicionan).
+- **Operador disponible**: solo cotiza un operador con `available = true` (409 `OPERATOR_NOT_AVAILABLE`).
+- **Importe (DCC-08)**: pesos COP enteros entre `QUOTE_AMOUNT_MIN_COP` (10.000) y `QUOTE_AMOUNT_MAX_COP` (2.000.000), definidos en `shared/src/schemas/inputBounds.schema.ts`. Un decimal o un valor fuera de rango → 400.
+- **Una cotización por operador y servicio**: `@@unique([serviceId, operatorProfileId])`. Si el operador vuelve a cotizar mientras el servicio está `PENDING`/`QUOTED`, la nueva reemplaza la anterior (mismo `id`, responde 200). La fila del servicio se bloquea (`FOR UPDATE`) para que una aceptación simultánea no cobre un importe distinto del guardado.
+- **Múltiples operadores** pueden cotizar sobre un servicio `QUOTED` (la primera cotización transiciona `PENDING → QUOTED`; las siguientes no transicionan).
 - **Doble-accept protegido**: `acceptedQuoteId @unique` a DB-level + check `status === ACTIVE` → 409 `ALREADY_ACCEPTED`. Race condition en `prisma.$transaction` captura `P2002`.
-- **Payment stub**: `amount = quote.amount`, `commission = 0`, `operatorAmount = quote.amount`, `status = PENDING`. Placeholder para cambio-006.
+- **Payment y comisión (DCC-08)**: al aceptar se crea el `Payment` `PENDING` con `amount = quote.amount`, `commission = round(amount × PAYMENT_COMMISSION_RATE / 100)` y `operatorAmount = amount − commission` (`backend/src/services/commission.ts`, tasa 10 % por defecto). Es el único sitio donde se calcula: `init` y el webhook usan los importes guardados.
+- **Borrados**: `Service.client`, `Quote.operator` y `Payment.service` son `onDelete: Restrict`. Borrar un usuario con servicios, cotizaciones o pagos falla; el borrado de cuenta se hará anonimizando (DCC-14).
 - **Notificación**: `notifyClient(service, 'quote_received')` en **cada** quote (no solo la primera).
 
 > La FSM (`serviceMachine.ts`) no se modifica — las transiciones `PENDING→QUOTED` (system) y `QUOTED→ACTIVE` (CLIENT) ya estaban definidas en cambio-004; cambio-005 solo las invoca. Detalles en `docs/designs/cambio-005-quotes/design.md`.
