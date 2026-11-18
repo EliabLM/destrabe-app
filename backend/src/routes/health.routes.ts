@@ -33,7 +33,12 @@ export function createHealthRouter(
   deadlineMs = DEADLINE_MS,
 ): Router {
   const router = Router();
-  router.get('/health', async (_req, res) => {
+  // DCC-17: liveness. Solo dice que el proceso responde; no mira dependencias.
+  router.get('/health/live', (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+  // Readiness: BD y, mientras exista, Redis. `/health` se mantiene como alias.
+  router.get(['/health', '/health/ready'], async (_req, res) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
