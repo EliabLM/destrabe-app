@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
  * Cliente SMS de Plivo (REQ-005 / DCC-04).
  *
  * - Modo dev (sin PLIVO_AUTH_ID): `sendOtp` registra el OTP y no llama a Plivo.
+ * - Demo (DCC-22): los números de `OTP_LOG_NUMBERS` van al log, nunca a Plivo.
  * - Con credenciales: `POST /v1/Account/{auth_id}/Message/` con `fetch`,
  *   Basic auth y *timeout*. `fetch` está simulado: nunca se envían SMS reales.
  */
@@ -14,6 +15,7 @@ const { envMock } = vi.hoisted(() => ({
     PLIVO_AUTH_TOKEN: undefined as string | undefined,
     PLIVO_PHONE_NUMBER: undefined as string | undefined,
     NODE_ENV: 'test' as string,
+    OTP_LOG_NUMBERS: [] as string[],
   },
 }));
 
@@ -36,6 +38,7 @@ describe('plivo client — sendOtp (REQ-005)', () => {
     envMock.PLIVO_AUTH_TOKEN = undefined;
     envMock.PLIVO_PHONE_NUMBER = undefined;
     envMock.NODE_ENV = 'test';
+    envMock.OTP_LOG_NUMBERS = [];
   });
 
   afterEach(() => {
@@ -74,6 +77,47 @@ describe('plivo client — sendOtp (REQ-005)', () => {
     for (const spy of spies) {
       for (const call of spy.mock.calls) {
         expect(JSON.stringify(call)).not.toContain('123456');
+      }
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each(['production', 'test'])(
+    'demo (%s): un número de OTP_LOG_NUMBERS registra el código con el teléfono enmascarado y no llama a Plivo',
+    async (nodeEnv) => {
+      envMock.NODE_ENV = nodeEnv;
+      envMock.OTP_LOG_NUMBERS = ['+573001234567'];
+      // Aunque haya credenciales, el número de la demo no recibe SMS.
+      setCredentials();
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const { sendOtp } = await import('../src/lib/plivo');
+
+      await sendOtp('+573001234567', '654321');
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalledTimes(1);
+      const line = String(logSpy.mock.calls[0]?.[0]);
+      expect(line).toContain('+57******4567');
+      expect(line).toContain('654321');
+      expect(line).not.toContain('+573001234567');
+    },
+  );
+
+  it('demo en producción: un número fuera de OTP_LOG_NUMBERS no deja el código en el log', async () => {
+    envMock.NODE_ENV = 'production';
+    envMock.OTP_LOG_NUMBERS = ['+573001234567'];
+    const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map(
+      (m) => vi.spyOn(console, m).mockImplementation(() => {}),
+    );
+    const { sendOtp } = await import('../src/lib/plivo');
+
+    await expect(sendOtp('+573009876543', '654321')).rejects.toThrow(
+      'Plivo credentials are not configured',
+    );
+
+    for (const spy of spies) {
+      for (const call of spy.mock.calls) {
+        expect(JSON.stringify(call)).not.toContain('654321');
       }
     }
     expect(fetchMock).not.toHaveBeenCalled();
