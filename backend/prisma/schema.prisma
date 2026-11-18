@@ -67,7 +67,8 @@ model OperatorProfile {
 model Service {
   id              String        @id @default(cuid())
   clientProfileId String
-  client          ClientProfile @relation(fields: [clientProfileId], references: [id], onDelete: Cascade)
+  // DCC-08: Restrict para que borrar un usuario no borre servicios ni pagos.
+  client          ClientProfile @relation(fields: [clientProfileId], references: [id], onDelete: Restrict)
 
   type        ServiceType
   status      ServiceStatus @default(PENDING)
@@ -108,15 +109,18 @@ model Quote {
   serviceId         String
   service           Service         @relation("ServiceQuotes", fields: [serviceId], references: [id], onDelete: Cascade)
   operatorProfileId String
-  operator          OperatorProfile @relation(fields: [operatorProfileId], references: [id], onDelete: Cascade)
+  operator          OperatorProfile @relation(fields: [operatorProfileId], references: [id], onDelete: Restrict)
 
-  amount           Float
+  // Pesos COP enteros (DCC-08).
+  amount           Int
   estimatedMinutes Int?
   note             String?
   createdAt        DateTime @default(now())
 
   acceptedForService Service? @relation("AcceptedQuote")
 
+  // DCC-08: una sola cotización por operador y servicio; una nueva la reemplaza.
+  @@unique([serviceId, operatorProfileId])
   @@index([serviceId])
   @@index([operatorProfileId])
 }
@@ -124,12 +128,14 @@ model Quote {
 model Payment {
   id        String  @id @default(cuid())
   serviceId String  @unique
-  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  // DCC-08: un registro financiero no se borra en cascada.
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
 
   mpPaymentId    String?       @unique
-  amount         Float
-  commission     Float
-  operatorAmount Float
+  // Pesos COP enteros (DCC-08). operatorAmount = amount - commission.
+  amount         Int
+  commission     Int
+  operatorAmount Int
   status         PaymentStatus @default(PENDING)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
