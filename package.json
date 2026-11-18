@@ -15,7 +15,7 @@
     "test:db": "vitest run --config vitest.db.config.ts",
     "test:coverage": "vitest run --coverage --config vitest.coverage.config.ts",
     "test:all": "npm test && npm run test:db",
-    "db:up": "docker compose -f infra/docker-compose.dev.yml up -d postgres redis",
+    "db:up": "docker compose -f infra/docker-compose.dev.yml up -d postgres",
     "db:down": "docker compose -f infra/docker-compose.dev.yml down",
     "db:migrate": "prisma migrate dev --schema=backend/prisma/schema.prisma",
     "lint": "eslint .",

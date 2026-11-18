@@ -14,7 +14,7 @@ App móvil de intermediación de servicios de grúa. Modelo de oferta libre (tip
 ## Stack
 
 - **App móvil:** React Native (Expo SDK) · TypeScript · React Navigation v7 · Zustand · Axios · Mapbox (`@rnmapbox/maps`) · `socket.io-client`
-- **Backend:** Node.js 20 LTS · Express + TypeScript · Prisma · PostgreSQL 16 (PostGIS) · Socket.io · Better Auth · BullMQ + Redis · Zod
+- **Backend:** Node.js 20 LTS · Express + TypeScript · Prisma · PostgreSQL 16 (PostGIS) · Socket.io · Better Auth · Zod
 - **Servicios externos:** FCM (push) · Plivo (OTP SMS) · Mercado Pago Marketplace (pagos) · Resend (email)
 - **Infra:** Docker Compose + Caddy (HTTPS automático) en Hetzner CX22 · CI/CD vía GitHub Actions
 
@@ -73,9 +73,9 @@ liberar un flag: [docs/runbooks/feature-flags.md](./docs/runbooks/feature-flags.
 ```bash
 npm install                          # instala workspaces (backend, shared) y deps
 npm run build -w @destrabe/shared    # compila shared -> dist/ (antes de dev backend)
-npm run db:up                        # levanta Postgres+PostGIS y Redis (docker-compose.dev.yml) en :5432 y :6379
+npm run db:up                        # levanta Postgres+PostGIS (docker-compose.dev.yml) en :5432
 npm run db:migrate                   # aplica migraciones (crea tablas/enums)
-npm run dev -w @destrabe/backend     # backend en :3000 (sin DB/Redis para /health)
+npm run dev -w @destrabe/backend     # backend en :3000 (sin DB, /health responde 503)
 npm test                             # unit tests (vitest, sin DB)
 npm run test:db                      # db smoke tests (requiere db:up + migración)
 npm test -- --coverage               # unit + cobertura (umbral 80%)
@@ -98,21 +98,21 @@ Auth centralizada en Better Auth (ADR-003), montada bajo `/api/auth` con `prisma
 | GET    | `/api/auth/get-session`           | `{ session, user }` o `null`                                                                            |
 | POST   | `/api/auth/sign-out`              | revoca la sesión enviada por cookie o Bearer y borra la cookie                                          |
 
-`GET /api/me` y las rutas protegidas usan `requireAuth` → `auth.api.getSession` (cookie o Bearer con plugin); sin sesión o tras logout/expiración responden 401. Al reabrir la app se valida `/api/me` antes de reconstruir usuario/perfil; un 401 borra el token local. Cobertura de contrato sin infraestructura: `backend/__tests__/auth.mobile.contract.test.ts` ejecuta el handler Better Auth, router Express, middleware y Axios de la app con adaptador de memoria de Better Auth y bordes Prisma/Plivo/cola simulados. No prueba Postgres/Redis, envío SMS ni ejecución en dispositivo; `npm run test:db` sigue requiriendo esos servicios. La spec histórica de cambio-003 describe rutas antiguas; la corrección vigente se documenta en `docs/specs/cambio-008-app-movil-demo/auth-lifecycle.md`.
+`GET /api/me` y las rutas protegidas usan `requireAuth` → `auth.api.getSession` (cookie o Bearer con plugin); sin sesión o tras logout/expiración responden 401. Al reabrir la app se valida `/api/me` antes de reconstruir usuario/perfil; un 401 borra el token local. Cobertura de contrato sin infraestructura: `backend/__tests__/auth.mobile.contract.test.ts` ejecuta el handler Better Auth, router Express, middleware y Axios de la app con adaptador de memoria de Better Auth y bordes Prisma/Plivo simulados. No prueba Postgres, envío SMS ni ejecución en dispositivo; `npm run test:db` sigue requiriendo esos servicios. La spec histórica de cambio-003 describe rutas antiguas; la corrección vigente se documenta en `docs/specs/cambio-008-app-movil-demo/auth-lifecycle.md`.
 
 > Roles (`UserRole`: `CLIENT` por defecto, `OPERATOR`) se enforcean con `requireAuth` / `requireRole` (`backend/src/middleware/auth.ts`). Detalles y desviaciones de la spec en `docs/adr/ADR-003-better-auth.md`.
 
 ## Servicios (ciclo de vida)
 
-Flujo de solicitud de grúa con máquina de estados finita (FSM) y timer de expiración BullMQ+Redis (cambio-004). El cliente publica una solicitud `PENDING`; los operadores cercanos la ven vía búsqueda geoespacial PostGIS; el timer auto-cancela a los 15 min sin actividad.
+Flujo de solicitud de grúa con máquina de estados finita (FSM) y expiración por barrido periódico en Postgres (DCC-07). El cliente publica una solicitud `PENDING`; los operadores cercanos la ven vía búsqueda geoespacial PostGIS y pueden cotizarla mientras siga `PENDING` o `QUOTED`; si el cliente no acepta ninguna oferta en `SERVICE_TIMEOUT_MINUTES` (15 por defecto), se cancela.
 
 ### Endpoints
 
 | Método | Ruta                   | Rol      | Efecto                                                                                                                   |
 | ------ | ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
-| POST   | `/services`            | CLIENT   | Crea `Service` `PENDING` + `ClientProfile` (lazy upsert) + enqueue expiry                                                |
+| POST   | `/services`            | CLIENT   | Crea `Service` `PENDING` + `ClientProfile` (lazy upsert); `expiresAt = ahora + SERVICE_TIMEOUT_MINUTES`                  |
 | GET    | `/services`            | CLIENT   | Solicitudes propias paginadas (`limit` 1–100, default 20; cursor opaco); `{items,nextCursor}`. Sin perfil: página vacía. |
-| GET    | `/services/nearby`     | OPERATOR | Búsqueda geoespacial PostGIS `ST_DWithin` — `PENDING` no expirados en radio                                              |
+| GET    | `/services/nearby`     | OPERATOR | PostGIS `ST_DWithin`: `PENDING`/`QUOTED` sin expirar, sin los ya cotizados por el operador, con `quoteCount`             |
 | GET    | `/services/:id`        | auth     | Dueño: completo · Operador: público · Ajeno: 404                                                                         |
 | PATCH  | `/services/:id/status` | auth     | Transición FSM (`assertTransition`); ilegal → 409 `INVALID_TRANSITION`                                                   |
 
@@ -121,15 +121,15 @@ Flujo de solicitud de grúa con máquina de estados finita (FSM) y timer de expi
 ```
 PENDING ──system──▶ QUOTED ──CLIENT──▶ ACTIVE ──OPERATOR──▶ COMPLETED
    │                   │
-   └─CLIENT/system──▶ CANCELLED ◀──CLIENT──┘
+   └─CLIENT/system──▶ CANCELLED ◀──CLIENT/system──┘
 ```
 
-- `PENDING → CANCELLED`: CLIENT o system (timer BullMQ a los `SERVICE_TIMEOUT_MINUTES` min).
+- `PENDING → CANCELLED` y `QUOTED → CANCELLED`: CLIENT o system (expiración al vencer `expiresAt`).
 - `QUOTED → ACTIVE`: CLIENT (requiere `acceptedQuoteId`; inalcanzable hasta quotes — cambio-005).
 - `ACTIVE → COMPLETED`: OPERATOR.
 - Cualquier transición fuera de la tabla → `ConflictError` 409.
 
-> El timer BullMQ (`serviceExpiry` queue) encola un job con `delay = SERVICE_TIMEOUT_MINUTES * 60s` al crear el servicio; al expirar, el worker transiciona `PENDING → CANCELLED` vía `system` y notifica (log stub en demo). Detalles en `docs/designs/cambio-004-servicios/design.md`.
+> Expiración (DCC-07/DCC-19, sin Redis): `expireOverdueServices()` (`backend/src/jobs/serviceExpiry.job.ts`) cancela con un solo `UPDATE` los `PENDING`/`QUOTED` con `expiresAt` vencido y notifica al cliente (log stub en demo). Corre al arrancar el servidor y cada `SERVICE_EXPIRY_SWEEP_SECONDS` (60 por defecto), con `pg_try_advisory_xact_lock` para que varias réplicas no trabajen a la vez. Es idempotente: repetirlo no duplica notificaciones. Entre el vencimiento y el siguiente barrido el servicio ya no aparece en `/nearby` ni en la vista previa del operador, porque esas consultas filtran por `expiresAt`.
 
 ## Cotizaciones (quotes/offers)
 
