@@ -62,24 +62,25 @@ export function createShutdown(options: ShutdownOptions) {
       let code = 0;
       try {
         await closeServer(server);
-        for (const step of steps) {
-          try {
-            await step.close();
-          } catch (err) {
-            code = 1;
-            logger.error({ err, step: step.name }, 'shutdown step failed');
-          }
-        }
       } catch (err) {
         code = 1;
         logger.error({ err }, 'failed to close HTTP server');
-      } finally {
+      }
+      // Los pasos se cierran aunque el servidor no haya cerrado bien: un
+      // proceso de fondo no debe seguir vivo mientras se desconecta la BD.
+      for (const step of steps) {
         try {
-          await disconnectDb();
+          await step.close();
         } catch (err) {
           code = 1;
-          logger.error({ err }, 'failed to disconnect database');
+          logger.error({ err, step: step.name }, 'shutdown step failed');
         }
+      }
+      try {
+        await disconnectDb();
+      } catch (err) {
+        code = 1;
+        logger.error({ err }, 'failed to disconnect database');
       }
       clearTimeout(timer);
       logger.info({ signal, code }, 'shutdown complete');

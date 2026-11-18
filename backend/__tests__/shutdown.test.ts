@@ -105,6 +105,32 @@ describe('graceful shutdown (DCC-17)', () => {
     expect(logs.text()).toContain('shutdown step failed');
   });
 
+  it('still closes the steps before Prisma when server.close() fails', async () => {
+    const server = await listen();
+    vi.spyOn(server, 'close').mockImplementation(((
+      cb?: (err?: Error) => void,
+    ) => {
+      cb?.(new Error('close failed'));
+      return server;
+    }) as typeof server.close);
+    const order: string[] = [];
+    const exit = vi.fn();
+    const logs = captureLogs();
+    await createShutdown({
+      server,
+      logger: logs.logger,
+      steps: [{ name: 'expiry', close: () => void order.push('expiry') }],
+      disconnectDb: async () => void order.push('db'),
+      exit,
+    })('SIGTERM');
+    vi.restoreAllMocks();
+    server.close();
+
+    expect(order).toEqual(['expiry', 'db']);
+    expect(exit).toHaveBeenCalledWith(1);
+    expect(logs.text()).toContain('failed to close HTTP server');
+  });
+
   it('forces exit 1 when shutdown exceeds the timeout', async () => {
     vi.useFakeTimers();
     const server = await listen();
