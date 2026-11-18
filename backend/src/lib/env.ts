@@ -85,6 +85,22 @@ const envSchema = z.object({
     .string()
     .regex(/^\d{6}$/, 'OTP_TEST_CODE debe tener 6 dígitos')
     .optional(),
+  // DCC-22 — Demo: números (coma) cuyo OTP se escribe en el log en vez de
+  // enviarse por SMS. Permitido en producción; vacío = apagado.
+  OTP_LOG_NUMBERS: z
+    .string()
+    .optional()
+    .transform((v) =>
+      (v ?? '')
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean),
+    )
+    .pipe(
+      z.array(
+        z.string().regex(/^\+573\d{9}$/, 'OTP_LOG_NUMBERS: solo móviles +573…'),
+      ),
+    ),
   // Issue #13 — feature flags por usuario (JSON; ver featureFlagsConfig.ts).
   FEATURE_FLAGS: z.string().optional(),
 });
