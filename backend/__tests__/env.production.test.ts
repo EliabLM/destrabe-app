@@ -4,7 +4,6 @@ import { parseEnv } from '../src/lib/env';
 const valid = {
   NODE_ENV: 'production',
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
-  REDIS_URL: 'redis://localhost:6379',
   BETTER_AUTH_SECRET: 'x'.repeat(32),
   BETTER_AUTH_URL: 'https://api.example.invalid',
   CORS_ORIGIN: 'https://app.example.invalid',
@@ -22,7 +21,6 @@ describe('production configuration', () => {
 
   it.each([
     'DATABASE_URL',
-    'REDIS_URL',
     'BETTER_AUTH_SECRET',
     'BETTER_AUTH_URL',
     'CORS_ORIGIN',

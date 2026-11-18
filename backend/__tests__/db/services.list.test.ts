@@ -18,7 +18,6 @@ vi.mock('../../src/lib/auth', () => ({
   },
   authHandler: vi.fn((_req, _res, next) => next()),
 }));
-vi.mock('../../src/lib/queue', () => ({ enqueueServiceExpiry: vi.fn() }));
 
 const app = createApp();
 const get = (id: string, path = '/services') =>

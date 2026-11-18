@@ -3,48 +3,35 @@ import express from 'express';
 import request from 'supertest';
 import { createHealthRouter } from '../src/routes/health.routes';
 
-function appWithChecks(
-  db: () => Promise<unknown>,
-  redis: () => Promise<unknown>,
-) {
+function appWithDb(db: () => Promise<unknown>) {
   const app = express();
-  app.use(createHealthRouter({ db, redis }, 20));
+  app.use(createHealthRouter({ db }, 20));
   return app;
 }
 
 describe('GET /health readiness', () => {
-  it('returns 200 only when DB and Redis respond', async () => {
+  it('returns 200 when the DB responds (no Redis since DCC-19)', async () => {
     const db = vi.fn().mockResolvedValue(1);
-    const redis = vi.fn().mockResolvedValue('PONG');
-    const res = await request(appWithChecks(db, redis)).get('/health');
+    const res = await request(appWithDb(db)).get('/health');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'ok' });
     expect(db).toHaveBeenCalledOnce();
-    expect(redis).toHaveBeenCalledOnce();
   });
 
-  it.each(['db', 'redis'])(
-    'returns 503 without leaking errors when %s fails',
-    async (failed) => {
-      const error = new Error('postgresql://user:secret@host/db');
-      const db = () =>
-        failed === 'db' ? Promise.reject(error) : Promise.resolve(1);
-      const redis = () =>
-        failed === 'redis' ? Promise.reject(error) : Promise.resolve('PONG');
-      const res = await request(appWithChecks(db, redis)).get('/health');
-      expect(res.status).toBe(503);
-      expect(res.body).toEqual({ status: 'unavailable' });
-      expect(res.text).not.toContain('secret');
-    },
-  );
+  it('returns 503 without leaking errors when the DB fails', async () => {
+    const error = new Error('postgresql://user:secret@host/db');
+    const res = await request(appWithDb(() => Promise.reject(error))).get(
+      '/health',
+    );
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ status: 'unavailable' });
+    expect(res.text).not.toContain('secret');
+  });
 
-  it('returns 503 within the configured deadline when a dependency hangs', async () => {
-    const res = await request(
-      appWithChecks(
-        () => new Promise(() => {}),
-        () => Promise.resolve('PONG'),
-      ),
-    ).get('/health');
+  it('returns 503 within the configured deadline when the DB hangs', async () => {
+    const res = await request(appWithDb(() => new Promise(() => {}))).get(
+      '/health',
+    );
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ status: 'unavailable' });
   });

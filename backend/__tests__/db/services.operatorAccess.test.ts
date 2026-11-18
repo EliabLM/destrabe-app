@@ -35,10 +35,6 @@ const { capturedSendOtps, sendOtpMock } = vi.hoisted(() => ({
   }),
 }));
 vi.mock('../../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
-vi.mock('../../src/lib/queue', () => ({
-  enqueueServiceExpiry: vi.fn().mockResolvedValue(undefined),
-  createWorker: vi.fn(),
-}));
 
 const prisma = new PrismaClient();
 

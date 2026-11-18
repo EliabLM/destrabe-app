@@ -15,7 +15,6 @@ import {
 import { prisma } from '../lib/prisma';
 import { env } from '../lib/env';
 import { assertTransition } from '../services/serviceMachine';
-import { enqueueServiceExpiry } from '../lib/queue';
 import { PaymentPendingError } from '../services/paymentGateway';
 import { isOpenForQuotes, toOperatorPreview } from '../services/serviceAccess';
 
@@ -98,13 +97,8 @@ servicesRouter.post(
         },
       });
 
-      // REQ-002: Enqueue expiry job (skip in test env to avoid Redis dependency)
-      if (env.NODE_ENV !== 'test') {
-        await enqueueServiceExpiry(
-          service.id,
-          env.SERVICE_TIMEOUT_MINUTES * 60 * 1000,
-        );
-      }
+      // DCC-07: el barrido periódico (jobs/serviceExpiry.job.ts) lo cancela
+      // al vencer `expiresAt`; no hace falta programar nada al crearlo.
 
       // REQ-002: 201 response
       res.status(201).json({

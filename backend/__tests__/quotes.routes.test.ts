@@ -35,7 +35,6 @@ vi.mock('../src/lib/prisma', () => ({
     $transaction: m.transaction,
   },
 }));
-vi.mock('../src/lib/queue', () => ({ enqueueServiceExpiry: vi.fn() }));
 vi.mock('../src/lib/notifications', () => ({ notifyClient: m.notifyClient }));
 
 const as = (id: string, role: string) =>

@@ -14,7 +14,7 @@ import { ServiceStatus, ServiceType, UserRole } from '@destrabe/shared';
 /**
  * T9 — Services lifecycle db smoke (REQ-002/003/004/005/010).
  *
- * Requiere Postgres+PostGIS+Redis up (`npm run db:up`). Ejercicio end-to-end
+ * Requiere Postgres+PostGIS up (`npm run db:up`). Ejercicio end-to-end
  * de los 4 endpoints de `/services` contra la DB real de dev, autenticando
  * vía el flujo OTP de Better Auth (mock de Plivo captura el código).
  *
@@ -24,10 +24,6 @@ import { ServiceStatus, ServiceType, UserRole } from '@destrabe/shared';
  *   PATCH  /services/:id/status  PENDING→CANCELLED dueño; 409 ilegal (REQ-005)
  *   GET    /services/nearby PostGIS: PENDING 1km dentro, 10km fora, COMPLETED fora (REQ-003/010)
  *   init_postgis idempotente (pg_extension) (REQ-010)
- *
- * `enqueueServiceExpiry` se mockea para evitar la conexión Redis al cargar
- * `queue.ts` (el route ya la skippea en NODE_ENV=test, el mock es belt-and-
- * suspenders para que el db test no dependa de Redis para el cycle de POST).
  */
 
 // Prisma lee env("DATABASE_URL") de process.env en tiempo de conexión (lazy).
@@ -45,14 +41,6 @@ const { capturedSendOtps, sendOtpMock } = vi.hoisted(() => ({
   }),
 }));
 vi.mock('../../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
-
-// Mock de queue: evita `new Queue`/`new IORedis` al cargar queue.ts (side
-// effect de módulo). El route skippea el enqueue en test, así que el spy
-// no se invoca; el mock existe solo para aislar la conexión Redis.
-vi.mock('../../src/lib/queue', () => ({
-  enqueueServiceExpiry: vi.fn().mockResolvedValue(undefined),
-  createWorker: vi.fn(),
-}));
 
 // ─── Prisma dedicado para limpieza/siembra (no se mockea: db smoke) ──────────
 

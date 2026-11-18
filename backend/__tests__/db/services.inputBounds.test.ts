@@ -41,10 +41,6 @@ const { capturedSendOtps, sendOtpMock } = vi.hoisted(() => ({
   }),
 }));
 vi.mock('../../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
-vi.mock('../../src/lib/queue', () => ({
-  enqueueServiceExpiry: vi.fn().mockResolvedValue(undefined),
-  createWorker: vi.fn(),
-}));
 
 const prisma = new PrismaClient();
 
@@ -85,7 +81,7 @@ afterAll(async () => {
 });
 
 import { createApp } from '../../src/app';
-import { expirePendingService } from '../../src/jobs/serviceExpiry.job';
+import { expireOverdueServices } from '../../src/jobs/serviceExpiry.job';
 
 async function authenticateAs(phoneNumber: string, role: UserRole) {
   const agent = request.agent(createApp());
@@ -338,7 +334,11 @@ describe('Migración de coordenadas con filas inválidas previas', () => {
     ).toMatchObject({ lastLatitude: null, lastLongitude: null });
 
     // Las filas antes inválidas admiten actualizaciones.
-    await expirePendingService(toExpire.id);
+    await prisma.service.update({
+      where: { id: toExpire.id },
+      data: { expiresAt: new Date(Date.now() - 60_000) },
+    });
+    await expireOverdueServices();
     expect((await after(toExpire.id)).status).toBe(ServiceStatus.CANCELLED);
 
     const cancel = await client
