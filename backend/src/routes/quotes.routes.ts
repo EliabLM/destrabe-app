@@ -7,8 +7,10 @@ import { validate } from '../middleware/validate';
 import type { ValidatedRequest } from '../middleware/validate';
 import { createQuoteSchema, acceptQuoteSchema } from '@destrabe/shared';
 import { prisma } from '../lib/prisma';
-import { assertTransition } from '../services/serviceMachine';
+import { assertTransition, ConflictError } from '../services/serviceMachine';
 import { notifyClient } from '../lib/notifications';
+import { env } from '../lib/env';
+import { calculateCommission } from '../services/commission';
 
 /**
  * Quotes routes — cambio-005 / REQ-001..007.
@@ -88,20 +90,57 @@ serviceQuotesRouter.post(
         });
       }
 
-      const wasPending = service.status === ServiceStatus.PENDING;
+      // DCC-08: solo cotiza un operador disponible.
+      if (!operatorProfile.available) {
+        return res.status(409).json({
+          error: 'Operator must be available to quote',
+          code: 'OPERATOR_NOT_AVAILABLE',
+        });
+      }
 
-      // REQ-001: $transaction — Quote create + (PENDING→QUOTED si era PENDING)
-      const quote = await prisma.$transaction(async (tx) => {
-        const q = await tx.quote.create({
-          data: {
+      // DCC-08: una cotización por operador y servicio. Si ya cotizó, la nueva
+      // reemplaza a la anterior. La fila del servicio se bloquea para que una
+      // aceptación simultánea no cobre un importe distinto del guardado.
+      const result = await prisma.$transaction(async (tx) => {
+        const [locked] = await tx.$queryRaw<{ status: ServiceStatus }[]>`
+          SELECT status FROM "Service" WHERE id = ${serviceId} FOR UPDATE`;
+        if (
+          !locked ||
+          (locked.status !== ServiceStatus.PENDING &&
+            locked.status !== ServiceStatus.QUOTED)
+        ) {
+          return null;
+        }
+
+        const key = {
+          serviceId_operatorProfileId: {
             serviceId,
             operatorProfileId: operatorProfile.id,
-            amount: data.amount,
-            estimatedMinutes: data.estimatedMinutes ?? null,
-            note: data.note ?? null,
           },
+        };
+        const fields = {
+          amount: data.amount,
+          estimatedMinutes: data.estimatedMinutes ?? null,
+          note: data.note ?? null,
+        };
+        const existing = await tx.quote.findUnique({
+          where: key,
+          select: { id: true },
         });
-        if (wasPending) {
+        const q = existing
+          ? await tx.quote.update({
+              where: key,
+              data: { ...fields, createdAt: new Date() },
+            })
+          : await tx.quote.create({
+              data: {
+                serviceId,
+                operatorProfileId: operatorProfile.id,
+                ...fields,
+              },
+            });
+
+        if (locked.status === ServiceStatus.PENDING) {
           assertTransition(
             ServiceStatus.PENDING,
             ServiceStatus.QUOTED,
@@ -112,13 +151,21 @@ serviceQuotesRouter.post(
             data: { status: ServiceStatus.QUOTED },
           });
         }
-        return q;
+        return { quote: q, replaced: existing !== null };
       });
+
+      if (!result) {
+        return res.status(409).json({
+          error: 'Service not accepting quotes',
+          code: 'INVALID_TRANSITION',
+        });
+      }
+      const { quote, replaced } = result;
 
       // REQ-007: notifica al cliente en CADA quote (service original, pre-update)
       notifyClient(service, 'quote_received');
 
-      res.status(201).json({
+      res.status(replaced ? 200 : 201).json({
         id: quote.id,
         amount: quote.amount,
         estimatedMinutes: quote.estimatedMinutes,
@@ -225,28 +272,52 @@ quotesAcceptRouter.post(
         'CLIENT',
       );
 
-      // REQ-003/006: $transaction — Service ACTIVE+acceptedQuoteId + Payment stub
+      // REQ-003/006: $transaction — Service ACTIVE+acceptedQuoteId + Payment.
+      // DCC-08: el importe se relee dentro de la transacción, después de
+      // bloquear el servicio, y la comisión se calcula aquí y solo aquí.
       try {
         const updated = await prisma.$transaction(async (tx) => {
-          const svc = await tx.service.update({
-            where: { id: service.id },
+          const { count } = await tx.service.updateMany({
+            where: { id: service.id, status: ServiceStatus.QUOTED },
             data: {
               status: ServiceStatus.ACTIVE,
               acceptedQuoteId: quote.id,
               assignedOperatorProfileId: quote.operatorProfileId,
             },
           });
+          if (count !== 1) {
+            // Otra petición lo aceptó o el barrido lo canceló entre la
+            // lectura y la transacción.
+            const now = await tx.service.findUniqueOrThrow({
+              where: { id: service.id },
+              select: { status: true },
+            });
+            if (now.status === ServiceStatus.ACTIVE) {
+              throw new AlreadyAcceptedError();
+            }
+            throw new ConflictError(
+              `Cannot accept a quote on a ${now.status} service`,
+            );
+          }
+          const current = await tx.quote.findUniqueOrThrow({
+            where: { id: quote.id },
+            select: { amount: true },
+          });
+          const { commission, operatorAmount } = calculateCommission(
+            current.amount,
+            env.PAYMENT_COMMISSION_RATE,
+          );
           await tx.payment.create({
             data: {
               serviceId: service.id,
-              amount: quote.amount,
-              commission: 0,
-              operatorAmount: quote.amount,
+              amount: current.amount,
+              commission,
+              operatorAmount,
               status: 'PENDING',
               mpPaymentId: null,
             },
           });
-          return svc;
+          return tx.service.findUniqueOrThrow({ where: { id: service.id } });
         });
         res.json(updated);
       } catch (err) {

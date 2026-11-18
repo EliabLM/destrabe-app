@@ -111,7 +111,12 @@ async function operatorWithProfile(phoneNumber: string) {
   const agent = await authenticateAs(phoneNumber, UserRole.OPERATOR);
   const user = await prisma.user.findUniqueOrThrow({ where: { phoneNumber } });
   const profile = await prisma.operatorProfile.create({
-    data: { userId: user.id, truckType: 'Grua', licensePlate: 'ABC123' },
+    data: {
+      userId: user.id,
+      truckType: 'Grua',
+      licensePlate: 'ABC123',
+      available: true,
+    },
   });
   return { agent, profileId: profile.id };
 }
