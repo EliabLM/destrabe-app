@@ -37,7 +37,9 @@ const envSchema = z.object({
   PLIVO_AUTH_TOKEN: z.string().optional(),
   PLIVO_PHONE_NUMBER: z.string().optional(),
   PAYMENT_GATEWAY: z.enum(['stub', 'mercadopago']).default('stub'),
-  PAYMENT_COMMISSION_RATE: z.coerce.number().int().min(0).max(100).default(0),
+  // DCC-08 — Comisión de la plataforma en porcentaje entero (10 % por defecto).
+  // Se aplica una sola vez, al crear el Payment (ver services/commission.ts).
+  PAYMENT_COMMISSION_RATE: z.coerce.number().int().min(0).max(100).default(10),
   PAYMENT_WEBHOOK_TOKEN: z.string().optional(),
   MP_ACCESS_TOKEN: z.string().optional(),
   MP_WEBHOOK_SECRET: z.string().optional(),
