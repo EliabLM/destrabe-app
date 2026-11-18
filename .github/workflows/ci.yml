@@ -1,8 +1,8 @@
 name: CI
 
 on:
+  # Sin filtro de rama base: también corre en PR apilados.
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
