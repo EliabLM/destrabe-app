@@ -17,6 +17,10 @@ import { ServiceStatus, ServiceType, UserRole } from '@destrabe/shared';
  *   - `expireOverdueServices()` cancela PENDING y QUOTED vencidos, no toca los
  *     vigentes ni los ACTIVE, y no duplica notificaciones al repetirse ni con
  *     dos barridos simultáneos.
+ *   - `/services/nearby` muestra a otros operadores los servicios ya
+ *     cotizados, con `quoteCount`, y no repite los que el operador cotizó.
+ *   - La consulta de `/nearby` puede usar el índice parcial
+ *     "Service_open_origin_geog_idx".
  */
 
 process.env.DATABASE_URL =
@@ -183,5 +187,77 @@ describe('DCC-07 — expireOverdueServices', () => {
     expect(notifyClientMock).toHaveBeenCalledTimes(5);
     const notified = notifyClientMock.mock.calls.map(([s]) => s.id).sort();
     expect(notified).toEqual([...ids].sort());
+  });
+});
+
+// ─── /nearby con varias ofertas ──────────────────────────────────────────────
+
+describe('DCC-07 — /services/nearby con varias ofertas', () => {
+  const near = { lat: ORIGIN.lat, lng: ORIGIN.lng, radiusKm: 5 };
+
+  it('B ve el servicio cotizado por A con quoteCount = 1; A no lo ve repetido', async () => {
+    const client = await authenticateAs(CLIENT_PHONE, UserRole.CLIENT);
+    const a = await operatorWithProfile(OPERATOR_A_PHONE);
+    const b = await operatorWithProfile(OPERATOR_B_PHONE);
+    const created = await client.post('/services').send({
+      type: ServiceType.BREAKDOWN,
+      originLat: ORIGIN.lat,
+      originLng: ORIGIN.lng,
+    });
+    expect(created.status).toBe(201);
+    const serviceId = created.body.id as string;
+
+    const before = await b.agent.get('/services/nearby').query(near);
+    expect(before.body).toHaveLength(1);
+    expect(before.body[0].quoteCount).toBe(0);
+
+    const quote = await a.agent
+      .post(`/services/${serviceId}/quotes`)
+      .send({ amount: 50000 });
+    expect(quote.status).toBe(201);
+
+    const forB = await b.agent.get('/services/nearby').query(near);
+    expect(forB.status).toBe(200);
+    expect(forB.body).toHaveLength(1);
+    expect(forB.body[0]).toMatchObject({
+      id: serviceId,
+      status: ServiceStatus.QUOTED,
+      quoteCount: 1,
+    });
+
+    const forA = await a.agent.get('/services/nearby').query(near);
+    expect(forA.status).toBe(200);
+    expect(forA.body).toHaveLength(0);
+  });
+
+  it('no muestra servicios QUOTED vencidos aunque el barrido no haya pasado', async () => {
+    const b = await operatorWithProfile(OPERATOR_B_PHONE);
+    await seedService(ServiceStatus.QUOTED, -1_000);
+
+    const res = await b.agent.get('/services/nearby').query(near);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
+
+  it('la consulta puede usar el índice parcial de servicios abiertos', async () => {
+    await seedService(ServiceStatus.PENDING, 15 * 60_000);
+    const plan = await prisma.$transaction(async (tx) => {
+      // Sin datos el planificador prefiere el seq scan; se desactiva solo
+      // para comprobar que el índice es aplicable a la consulta.
+      await tx.$executeRawUnsafe('SET LOCAL enable_seqscan = off');
+      return tx.$queryRaw<Array<{ 'QUERY PLAN': string }>>`
+        EXPLAIN
+        SELECT s.id FROM "Service" s
+        WHERE ST_DWithin(
+            ST_MakePoint(s."originLng", s."originLat")::geography,
+            ST_MakePoint(${ORIGIN.lng}::float8, ${ORIGIN.lat}::float8)::geography,
+            ${5000}::float8
+          )
+          AND s.status IN ('PENDING'::"ServiceStatus", 'QUOTED'::"ServiceStatus")
+          AND s."expiresAt" > NOW()
+      `;
+    });
+    const text = plan.map((row) => row['QUERY PLAN']).join('\n');
+    expect(text).toContain('Service_open_origin_geog_idx');
   });
 });

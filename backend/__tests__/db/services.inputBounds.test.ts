@@ -367,10 +367,16 @@ describe('Migración de coordenadas con filas inválidas previas', () => {
       data: { available: true },
     });
 
-    // /nearby sigue en 200 y solo devuelve servicios abiertos válidos.
+    // /nearby sigue en 200 y solo devuelve servicios abiertos válidos: el
+    // QUOTED sigue abierto a otras ofertas (DCC-07).
     const op = await authenticateAs(OPERATOR_PHONE, UserRole.OPERATOR);
     const res = await op.get('/services/nearby').query(QUERY);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({
+      id: toQuote.id,
+      status: ServiceStatus.QUOTED,
+      quoteCount: 1,
+    });
   });
 });
