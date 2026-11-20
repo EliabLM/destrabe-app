@@ -30,6 +30,8 @@ RUN npm ci --omit=dev --workspace=@destrabe/backend --workspace=@destrabe/shared
     && npx prisma generate --schema=backend/prisma/schema.prisma
 COPY --from=builder /srv/shared/dist shared/dist
 COPY --from=builder /srv/backend/dist backend/dist
+COPY --chmod=755 backend/docker-entrypoint.sh backend/docker-entrypoint.sh
 USER node
 EXPOSE 3000
-CMD ["npm", "run", "start", "-w", "@destrabe/backend"]
+# Node como PID 1 (sin npm en medio) para recibir SIGTERM; ver el script.
+CMD ["/srv/backend/docker-entrypoint.sh"]

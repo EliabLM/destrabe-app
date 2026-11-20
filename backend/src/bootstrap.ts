@@ -1,6 +1,7 @@
 import type { Server } from 'node:http';
 import { createApp } from './app';
 import type { Env } from './lib/env';
+import { logger } from './lib/logger';
 import {
   startServiceExpirySweeper,
   type ServiceExpirySweeper,
@@ -27,7 +28,10 @@ export function startServer(
 ): RunningServer {
   const app = createApp();
   const server = app.listen(env.PORT, () => {
-    console.log(`destrabe backend listening on :${env.PORT} (${env.NODE_ENV})`);
+    logger.info(
+      { port: env.PORT, env: env.NODE_ENV },
+      'destrabe backend listening',
+    );
   });
   const expirySweeper = startSweeper(env.SERVICE_EXPIRY_SWEEP_SECONDS * 1000);
 
