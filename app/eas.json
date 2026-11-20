@@ -1,0 +1,25 @@
+{
+  "cli": {
+    "version": ">= 21.1.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "node": "26.13.1",
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "node": "26.13.1",
+      "distribution": "internal",
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}

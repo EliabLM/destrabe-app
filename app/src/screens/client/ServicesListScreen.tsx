@@ -125,7 +125,7 @@ export default function ServicesListScreen() {
             </TouchableOpacity>
           ) : loading ? (
             <ActivityIndicator />
-          ) : null
+          ) : undefined
         }
         refreshControl={
           <RefreshControl
@@ -138,7 +138,7 @@ export default function ServicesListScreen() {
             <View style={styles.center}>
               <Text style={styles.emptyText}>Aún no tienes servicios</Text>
             </View>
-          ) : null
+          ) : undefined
         }
       />
 
