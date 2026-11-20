@@ -15,7 +15,6 @@ vi.mock('../src/lib/prisma', () => ({
     service: { findMany },
   },
 }));
-vi.mock('../src/lib/queue', () => ({ enqueueServiceExpiry: vi.fn() }));
 
 const row = (id: string, createdAt = '2026-11-15T12:00:00.000Z') => ({
   id,

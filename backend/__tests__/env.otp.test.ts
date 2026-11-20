@@ -6,7 +6,6 @@ import { parseEnv } from '../src/lib/env';
 const production = {
   NODE_ENV: 'production',
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
-  REDIS_URL: 'redis://localhost:6379',
   BETTER_AUTH_SECRET: 'x'.repeat(32),
   BETTER_AUTH_URL: 'https://api.example.invalid',
   CORS_ORIGIN: 'https://app.example.invalid',
@@ -73,4 +72,17 @@ describe('env — límites de SMS y OTP de pruebas (DCC-05)', () => {
       );
     },
   );
+
+  it('OTP_LOG_NUMBERS: vacía por defecto, permitida en producción y solo móviles +573 (DCC-22)', () => {
+    expect(parseEnv({ NODE_ENV: 'test' }).OTP_LOG_NUMBERS).toEqual([]);
+    expect(
+      parseEnv({
+        ...production,
+        OTP_LOG_NUMBERS: '+573000000001, +573000000002',
+      }).OTP_LOG_NUMBERS,
+    ).toEqual(['+573000000001', '+573000000002']);
+    expect(() =>
+      parseEnv({ ...production, OTP_LOG_NUMBERS: '+14155550100' }),
+    ).toThrow('OTP_LOG_NUMBERS');
+  });
 });

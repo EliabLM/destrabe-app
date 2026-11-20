@@ -11,7 +11,6 @@ vi.mock('../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
 // Sin BD: si el código intentara contar envíos o crear la verificación,
 // fallaría con 500 en vez de 400.
 vi.mock('../src/lib/prisma', () => ({ prisma: {} }));
-vi.mock('../src/lib/queue', () => ({ enqueueServiceExpiry: vi.fn() }));
 
 import { createApp } from '../src/app';
 

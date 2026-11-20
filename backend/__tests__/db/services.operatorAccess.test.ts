@@ -35,10 +35,6 @@ const { capturedSendOtps, sendOtpMock } = vi.hoisted(() => ({
   }),
 }));
 vi.mock('../../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
-vi.mock('../../src/lib/queue', () => ({
-  enqueueServiceExpiry: vi.fn().mockResolvedValue(undefined),
-  createWorker: vi.fn(),
-}));
 
 const prisma = new PrismaClient();
 
@@ -105,7 +101,12 @@ async function operatorWithProfile(phoneNumber: string) {
   const agent = await authenticateAs(phoneNumber, UserRole.OPERATOR);
   const user = await prisma.user.findUniqueOrThrow({ where: { phoneNumber } });
   const profile = await prisma.operatorProfile.create({
-    data: { userId: user.id, truckType: 'Grua', licensePlate: 'ABC123' },
+    data: {
+      userId: user.id,
+      truckType: 'Grua',
+      licensePlate: 'ABC123',
+      available: true,
+    },
   });
   return { agent, profileId: profile.id };
 }
@@ -258,21 +259,13 @@ describe('DCC-02 — operador no asignado en PENDING/QUOTED', () => {
     expect(quoted.body.status).toBe(ServiceStatus.QUOTED);
     expectPreview(quoted.body);
 
-    // /nearby usa la misma vista previa.
+    // /nearby usa la misma vista previa (QUOTED incluido, DCC-07).
     const nearby = await b.agent
       .get('/services/nearby')
       .query({ lat: ORIGIN.lat, lng: ORIGIN.lng, radiusKm: 5 });
     expect(nearby.status).toBe(200);
-    expect(nearby.body).toHaveLength(0); // QUOTED no aparece en /nearby
-    await prisma.service.update({
-      where: { id: serviceId },
-      data: { status: ServiceStatus.PENDING },
-    });
-    const nearbyPending = await b.agent
-      .get('/services/nearby')
-      .query({ lat: ORIGIN.lat, lng: ORIGIN.lng, radiusKm: 5 });
-    expect(nearbyPending.body).toHaveLength(1);
-    expectPreview(nearbyPending.body[0]);
+    expect(nearby.body).toHaveLength(1);
+    expectPreview(nearby.body[0]);
 
     // El dueño sigue viendo todo exacto.
     const owner = await client.get(`/services/${serviceId}`);

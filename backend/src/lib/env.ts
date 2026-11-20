@@ -16,7 +16,6 @@ import {
 const TEST_DEFAULTS = {
   BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret-32chars',
   BETTER_AUTH_URL: 'http://localhost:3000',
-  REDIS_URL: 'redis://localhost:6379',
   PAYMENT_WEBHOOK_TOKEN: 'test-webhook-token',
 } as const;
 
@@ -26,8 +25,9 @@ const envSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().optional(),
-  REDIS_URL: z.string().optional(),
   SERVICE_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(15),
+  // DCC-07 — Cada cuántos segundos se cancelan los servicios vencidos.
+  SERVICE_EXPIRY_SWEEP_SECONDS: z.coerce.number().int().positive().default(60),
   NEARBY_RADIUS_KM: z.coerce.number().positive().default(5),
   BETTER_AUTH_SECRET: z
     .string()
@@ -37,7 +37,9 @@ const envSchema = z.object({
   PLIVO_AUTH_TOKEN: z.string().optional(),
   PLIVO_PHONE_NUMBER: z.string().optional(),
   PAYMENT_GATEWAY: z.enum(['stub', 'mercadopago']).default('stub'),
-  PAYMENT_COMMISSION_RATE: z.coerce.number().int().min(0).max(100).default(0),
+  // DCC-08 — Comisión de la plataforma en porcentaje entero (10 % por defecto).
+  // Se aplica una sola vez, al crear el Payment (ver services/commission.ts).
+  PAYMENT_COMMISSION_RATE: z.coerce.number().int().min(0).max(100).default(10),
   PAYMENT_WEBHOOK_TOKEN: z.string().optional(),
   MP_ACCESS_TOKEN: z.string().optional(),
   MP_WEBHOOK_SECRET: z.string().optional(),
@@ -48,7 +50,8 @@ const envSchema = z.object({
     .default('true')
     .transform((v) => v === 'true'),
   // T1 — CORS origin for Express cors() middleware (cambio-008 / D4).
-  // Default '*' for Demo; configure specific origin(s) for production.
+  // '*' solo en desarrollo local y pruebas: en producción es obligatorio y no
+  // puede ser '*' (DCC-17).
   CORS_ORIGIN: z.string().default('*'),
   // DCC-05 — Proxies de confianza para Express (`trust proxy`): lista de IP o
   // CIDR (o los alias de proxy-addr `loopback`, `linklocal`, `uniquelocal`).
@@ -83,6 +86,22 @@ const envSchema = z.object({
     .string()
     .regex(/^\d{6}$/, 'OTP_TEST_CODE debe tener 6 dígitos')
     .optional(),
+  // DCC-22 — Demo: números (coma) cuyo OTP se escribe en el log en vez de
+  // enviarse por SMS. Permitido en producción; vacío = apagado.
+  OTP_LOG_NUMBERS: z
+    .string()
+    .optional()
+    .transform((v) =>
+      (v ?? '')
+        .split(',')
+        .map((n) => n.trim())
+        .filter(Boolean),
+    )
+    .pipe(
+      z.array(
+        z.string().regex(/^\+573\d{9}$/, 'OTP_LOG_NUMBERS: solo móviles +573…'),
+      ),
+    ),
   // Issue #13 — feature flags por usuario (JSON; ver featureFlagsConfig.ts).
   FEATURE_FLAGS: z.string().optional(),
 });
@@ -103,7 +122,6 @@ export function parseEnv(
             input.BETTER_AUTH_SECRET ?? TEST_DEFAULTS.BETTER_AUTH_SECRET,
           BETTER_AUTH_URL:
             input.BETTER_AUTH_URL ?? TEST_DEFAULTS.BETTER_AUTH_URL,
-          REDIS_URL: input.REDIS_URL ?? TEST_DEFAULTS.REDIS_URL,
           PAYMENT_WEBHOOK_TOKEN:
             input.PAYMENT_WEBHOOK_TOKEN ?? TEST_DEFAULTS.PAYMENT_WEBHOOK_TOKEN,
         }
@@ -126,17 +144,12 @@ export function parseEnv(
         throw new Error(`${name} must not be set in production`);
       }
     }
+    // DCC-17: en producción la API no acepta peticiones de cualquier origen.
+    if (input.CORS_ORIGIN?.trim() === '*') {
+      throw new Error('CORS_ORIGIN must not be "*" in production');
+    }
   }
   const parsed = envSchema.parse(withSandboxDefault);
-
-  // REDIS_URL is required in non-test environments
-  if (nodeEnv !== 'test' && !input.REDIS_URL) {
-    throw new Error(
-      'REDIS_URL is required in ' +
-        nodeEnv +
-        ' environment. Set REDIS_URL in your .env file.',
-    );
-  }
 
   // PAYMENT_WEBHOOK_TOKEN is required in non-test environments
   if (nodeEnv !== 'test' && !input.PAYMENT_WEBHOOK_TOKEN) {

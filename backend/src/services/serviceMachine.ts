@@ -36,7 +36,7 @@ export class ConflictError extends Error {
  *   PENDING → QUOTED        : system
  *   PENDING → CANCELLED     : CLIENT, system
  *   QUOTED  → ACTIVE        : CLIENT
- *   QUOTED  → CANCELLED     : CLIENT
+ *   QUOTED  → CANCELLED     : CLIENT, system (expiración, DCC-07)
  *   ACTIVE  → COMPLETED     : OPERATOR
  *   ACTIVE  → CANCELLED     : (not permitted — absent from table)
  *
@@ -53,7 +53,7 @@ const TRANSITIONS: Record<
   },
   [ServiceStatus.QUOTED]: {
     [ServiceStatus.ACTIVE]: ['CLIENT'],
-    [ServiceStatus.CANCELLED]: ['CLIENT'],
+    [ServiceStatus.CANCELLED]: ['CLIENT', 'system'],
   },
   [ServiceStatus.ACTIVE]: {
     [ServiceStatus.COMPLETED]: ['OPERATOR'],
