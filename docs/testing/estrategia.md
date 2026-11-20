@@ -122,7 +122,9 @@ Db smoke end-to-end de los 3 endpoints de quotes (cambio-005 / REQ-001..007). Au
 | Helper operator | `authenticateOperatorWithProfile(phone)` — OTP flow + `user.update({role:OPERATOR})` + `operatorProfile.create` |
 | Limpieza        | `truncateAll` de 11 tablas (incluye Quote/Payment) CASCADE por test                                             |
 
-Casos cubiertos: POST quote (PENDING→QUOTED 201; segunda quote QUOTED no transiciona; 422 sin OperatorProfile; 409 ACTIVE; 403 non-OPERATOR; 401), GET quotes (dueño todas + operator data; operador solo suyas; ajeno 404), POST accept (QUOTED→ACTIVE + Payment stub + acceptedQuoteId; 409 doble-accept ALREADY_ACCEPTED; 403 no-dueño).
+Casos cubiertos: POST quote (PENDING→QUOTED 201; segunda quote QUOTED no transiciona; reemplazo de la cotización del mismo operador 200, también con dos peticiones simultáneas; índice único en BD; 409 operador no disponible; 400 importe decimal o fuera de rango; 422 sin OperatorProfile; 409 ACTIVE; 403 non-OPERATOR; 401), GET quotes (dueño todas + operator data; operador solo suyas; ajeno 404), POST accept (QUOTED→ACTIVE + Payment con comisión del 10 % + acceptedQuoteId; 409 doble-accept ALREADY_ACCEPTED; 403 no-dueño).
+
+`db/migration.copAmounts.test.ts` devuelve la BD al estado previo a `20261119120000_cop_integer_amounts`, siembra importes con decimales y cotizaciones duplicadas, ejecuta la migración y comprueba el redondeo, la deduplicación y las restricciones. `db/cascade.test.ts` comprueba que borrar un usuario con historial falla por `Restrict`.
 
 ## Próximos dominios (futuro)
 

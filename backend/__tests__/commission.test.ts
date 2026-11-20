@@ -33,6 +33,27 @@ describe('calculateCommission (REQ-003)', () => {
     expect(result.operatorAmount).toBe(67);
   });
 
+  it('10 % de 50.000 COP → 5.000 de comisión y 45.000 para el operador', () => {
+    expect(calculateCommission(50000, 10)).toEqual({
+      commission: 5000,
+      operatorAmount: 45000,
+    });
+  });
+
+  it('redondea a pesos enteros: 10 % de 12.345 → 1.235 / 11.110', () => {
+    expect(calculateCommission(12345, 10)).toEqual({
+      commission: 1235,
+      operatorAmount: 11110,
+    });
+  });
+
+  it('rechaza importes decimales o negativos y tasas fuera de 0..100', () => {
+    expect(() => calculateCommission(100.5, 10)).toThrow(RangeError);
+    expect(() => calculateCommission(-100, 10)).toThrow(RangeError);
+    expect(() => calculateCommission(100, 10.5)).toThrow(RangeError);
+    expect(() => calculateCommission(100, 101)).toThrow(RangeError);
+  });
+
   it('rounds .5 up correctly', () => {
     // 25% of 10 = 2.5 → round(2.5) = 3 (Math.round rounds .5 up)
     const result = calculateCommission(10, 25);

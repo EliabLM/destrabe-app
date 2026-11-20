@@ -18,6 +18,13 @@ export const NEARBY_MAX_RADIUS_KM = 25;
 /** Máximo de filas que devuelve `GET /services/nearby`. */
 export const NEARBY_MAX_RESULTS = 50;
 
+/**
+ * Importe de una cotización en pesos colombianos enteros (DCC-08). Los
+ * límites se cambian aquí: los usan el backend y la app.
+ */
+export const QUOTE_AMOUNT_MIN_COP = 10_000;
+export const QUOTE_AMOUNT_MAX_COP = 2_000_000;
+
 export const SERVICE_DESCRIPTION_MAX_LENGTH = 500;
 export const PHOTO_URL_MAX_LENGTH = 2048;
 export const TRUCK_TYPE_MAX_LENGTH = 60;
@@ -73,3 +80,10 @@ export const httpsUrlSchema = z
   .string()
   .max(PHOTO_URL_MAX_LENGTH)
   .refine(isHttpsUrl, { message: 'URL must use https' });
+
+/** Importe en pesos COP: entero y dentro de los límites de cotización. */
+export const copAmountSchema = z
+  .number()
+  .int('amount must be an integer number of COP')
+  .min(QUOTE_AMOUNT_MIN_COP)
+  .max(QUOTE_AMOUNT_MAX_COP);

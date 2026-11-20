@@ -3,8 +3,6 @@ import { UserRole } from '@destrabe/shared';
 import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
 import type { ValidatedRequest } from '../middleware/validate';
 import { prisma } from '../lib/prisma';
-import { env } from '../lib/env';
-import { calculateCommission } from '../services/commission';
 import { getPaymentGateway } from '../services/paymentFactory';
 import {
   AlreadyProcessedError,
@@ -56,29 +54,20 @@ paymentsRouter.post(
         throw new AlreadyProcessedError('Payment already processed');
       }
 
-      // REQ-003: Calcular comisión
-      const { commission, operatorAmount } = calculateCommission(
-        payment.amount,
-        env.PAYMENT_COMMISSION_RATE,
-      );
-
-      // REQ-005: Invocar gateway
+      // REQ-005: Invocar gateway con los importes fijados al crear el
+      // Payment (DCC-08: la comisión no se recalcula aquí).
       const gateway = getPaymentGateway();
       const gatewayResult = await gateway.initPayment({
         id: payment.id,
         amount: payment.amount,
-        commission,
-        operatorAmount,
+        commission: payment.commission,
+        operatorAmount: payment.operatorAmount,
       });
 
-      // REQ-001: Persistir comisión + mpPaymentId
+      // REQ-001: Persistir mpPaymentId
       const updated = await prisma.payment.update({
         where: { id: payment.id },
-        data: {
-          commission,
-          operatorAmount,
-          mpPaymentId: gatewayResult.gatewayPaymentId,
-        },
+        data: { mpPaymentId: gatewayResult.gatewayPaymentId },
       });
 
       res.json({
@@ -125,19 +114,11 @@ paymentsRouter.post('/webhook', async (req, res, next) => {
       return res.json({ status: 'ignored' });
     }
 
-    // REQ-003: Recalcular comisión (defensa si amount mutó)
-    const { commission, operatorAmount } = calculateCommission(
-      payment.amount,
-      env.PAYMENT_COMMISSION_RATE,
-    );
-
     // REQ-002/004: Transicionar PENDING → CONFIRMED/FAILED
     const updated = await prisma.payment.update({
       where: { id: payment.id },
       data: {
         status: result.status as 'CONFIRMED' | 'FAILED',
-        commission,
-        operatorAmount,
         mpPaymentId: result.gatewayReference ?? payment.mpPaymentId,
       },
     });
