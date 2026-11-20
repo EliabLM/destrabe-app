@@ -21,14 +21,14 @@ const requestLines = (logs: ReturnType<typeof captureLogs>) =>
 
 describe('health probe logging (DCC-17)', () => {
   it('does not log probes that respond 200', async () => {
-    const { app: a, logs } = app({ db: ok, redis: ok });
+    const { app: a, logs } = app({ db: ok });
     expect((await request(a).get('/health/live')).status).toBe(200);
     expect((await request(a).get('/health/ready')).status).toBe(200);
     expect(requestLines(logs)).toHaveLength(0);
   });
 
   it('logs /health/ready when it responds 503 with the DB down', async () => {
-    const { app: a, logs } = app({ db: down, redis: ok });
+    const { app: a, logs } = app({ db: down });
     const res = await request(a).get('/health/ready');
     expect(res.status).toBe(503);
     const lines = requestLines(logs);

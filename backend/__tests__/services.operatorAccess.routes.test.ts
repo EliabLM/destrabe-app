@@ -46,7 +46,6 @@ vi.mock('../src/lib/prisma', () => ({
     $transaction: m.transaction,
   },
 }));
-vi.mock('../src/lib/queue', () => ({ enqueueServiceExpiry: vi.fn() }));
 vi.mock('../src/lib/notifications', () => ({ notifyClient: vi.fn() }));
 
 const FUTURE = new Date(Date.now() + 10 * 60_000);
@@ -357,23 +356,29 @@ describe('POST /quotes/:id/accept — fija el operador asignado', () => {
       amount: 50000,
       service: svc({ status: 'QUOTED' }),
     });
-    m.serviceUpdate.mockResolvedValue(
-      svc({
-        status: 'ACTIVE',
-        acceptedQuoteId: 'q-a',
-        assignedOperatorProfileId: 'op-a',
-      }),
-    );
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
     m.transaction.mockImplementation(async (fn) =>
       fn({
-        service: { update: m.serviceUpdate },
+        service: {
+          updateMany,
+          findUniqueOrThrow: vi.fn().mockResolvedValue(
+            svc({
+              status: 'ACTIVE',
+              acceptedQuoteId: 'q-a',
+              assignedOperatorProfileId: 'op-a',
+            }),
+          ),
+        },
+        quote: {
+          findUniqueOrThrow: vi.fn().mockResolvedValue({ amount: 50000 }),
+        },
         payment: { create: m.paymentCreate },
       }),
     );
     const res = await request(createApp()).post('/quotes/q-a/accept').send({});
     expect(res.status).toBe(200);
-    expect(m.serviceUpdate).toHaveBeenCalledWith({
-      where: { id: 'svc-1' },
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'svc-1', status: 'QUOTED' },
       data: {
         status: 'ACTIVE',
         acceptedQuoteId: 'q-a',

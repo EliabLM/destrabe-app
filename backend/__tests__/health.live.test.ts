@@ -4,7 +4,7 @@ import request from 'supertest';
 import { createHealthRouter } from '../src/routes/health.routes';
 
 const down = () =>
-  Promise.reject(new Error('ECONNREFUSED redis://secret@host'));
+  Promise.reject(new Error('ECONNREFUSED postgres://secret@host'));
 
 function app(checks: Parameters<typeof createHealthRouter>[0]) {
   const a = express();
@@ -13,24 +13,20 @@ function app(checks: Parameters<typeof createHealthRouter>[0]) {
 }
 
 describe('GET /health/live and /health/ready (DCC-17)', () => {
-  it('/health/live responds 200 with Redis and the DB down, without probing them', async () => {
+  it('/health/live responds 200 with the DB down, without probing it', async () => {
     const db = vi.fn(down);
-    const redis = vi.fn(down);
-    const res = await request(app({ db, redis })).get('/health/live');
+    const res = await request(app({ db })).get('/health/live');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'ok' });
     expect(db).not.toHaveBeenCalled();
-    expect(redis).not.toHaveBeenCalled();
   });
 
-  it('/health/ready checks the dependencies like /health', async () => {
+  it('/health/ready checks the DB like /health', async () => {
     const ok = () => Promise.resolve(1);
-    expect(
-      (await request(app({ db: ok, redis: ok })).get('/health/ready')).status,
-    ).toBe(200);
-    const res = await request(app({ db: ok, redis: down })).get(
-      '/health/ready',
+    expect((await request(app({ db: ok })).get('/health/ready')).status).toBe(
+      200,
     );
+    const res = await request(app({ db: down })).get('/health/ready');
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ status: 'unavailable' });
   });

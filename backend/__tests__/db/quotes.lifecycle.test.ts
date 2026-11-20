@@ -14,7 +14,7 @@ import { ServiceStatus, ServiceType, UserRole } from '@destrabe/shared';
 /**
  * T7 — Quotes lifecycle db smoke (REQ-001..007).
  *
- * Requiere Postgres+PostGIS+Redis up (`npm run db:up`). Ejercicio end-to-end
+ * Requiere Postgres+PostGIS up (`npm run db:up`). Ejercicio end-to-end
  * de los 3 endpoints de quotes contra la DB real, autenticando CLIENT y
  * OPERATOR vía OTP (mock Plivo) y reutilizando el patrón de
  * `services.lifecycle.test.ts` (cambio-004).
@@ -36,10 +36,6 @@ const { capturedSendOtps, sendOtpMock } = vi.hoisted(() => ({
   }),
 }));
 vi.mock('../../src/lib/plivo', () => ({ sendOtp: sendOtpMock }));
-vi.mock('../../src/lib/queue', () => ({
-  enqueueServiceExpiry: vi.fn().mockResolvedValue(undefined),
-  createWorker: vi.fn(),
-}));
 
 // ─── Prisma dedicado para limpieza/siembra ───────────────────────────────────
 
@@ -115,6 +111,7 @@ async function authenticateOperatorWithProfile(phone: string) {
       userId: user!.id,
       truckType: 'Grua mediana',
       licensePlate: 'ABC123',
+      available: true,
     },
   });
   return agent;
@@ -146,11 +143,11 @@ describe('POST /services/:id/quotes (REQ-001/007)', () => {
 
     const res = await operator
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 5000, estimatedMinutes: 20, note: 'Llego pronto' });
+      .send({ amount: 50000, estimatedMinutes: 20, note: 'Llego pronto' });
 
     expect(res.status).toBe(201);
     expect(res.body.id).toEqual(expect.any(String));
-    expect(res.body.amount).toBe(5000);
+    expect(res.body.amount).toBe(50000);
 
     // Service transitioned to QUOTED
     const svc = await prisma.service.findUnique({ where: { id: serviceId } });
@@ -162,14 +159,106 @@ describe('POST /services/:id/quotes (REQ-001/007)', () => {
     const op1 = await authenticateOperatorWithProfile(OPERATOR_PHONE);
     const op2 = await authenticateOperatorWithProfile(OPERATOR2_PHONE);
 
-    await op1.post(`/services/${serviceId}/quotes`).send({ amount: 4000 });
+    await op1.post(`/services/${serviceId}/quotes`).send({ amount: 40000 });
     const res2 = await op2
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 4500 });
+      .send({ amount: 45000 });
 
     expect(res2.status).toBe(201);
     const svc = await prisma.service.findUnique({ where: { id: serviceId } });
     expect(svc!.status).toBe(ServiceStatus.QUOTED);
+  });
+
+  it('una segunda cotización del mismo operador reemplaza la primera (DCC-08)', async () => {
+    const { client, serviceId } = await createPendingService(CLIENT_PHONE);
+    const operator = await authenticateOperatorWithProfile(OPERATOR_PHONE);
+
+    const first = await operator
+      .post(`/services/${serviceId}/quotes`)
+      .send({ amount: 50000, estimatedMinutes: 30, note: 'Primera' });
+    expect(first.status).toBe(201);
+
+    const second = await operator
+      .post(`/services/${serviceId}/quotes`)
+      .send({ amount: 45000 });
+    expect(second.status).toBe(200);
+    expect(second.body).toMatchObject({
+      id: first.body.id,
+      amount: 45000,
+      estimatedMinutes: null,
+      note: null,
+    });
+
+    const quotes = await prisma.quote.findMany({ where: { serviceId } });
+    expect(quotes).toHaveLength(1);
+    expect(quotes[0]!.amount).toBe(45000);
+
+    // Al aceptar se cobra el importe vigente.
+    const accept = await client
+      .post(`/quotes/${first.body.id}/accept`)
+      .send({});
+    expect(accept.status).toBe(200);
+    const payment = await prisma.payment.findUniqueOrThrow({
+      where: { serviceId },
+    });
+    expect(payment).toMatchObject({
+      amount: 45000,
+      commission: 4500,
+      operatorAmount: 40500,
+    });
+  });
+
+  it('la BD impide dos cotizaciones del mismo operador en un servicio', async () => {
+    const { serviceId } = await createPendingService(CLIENT_PHONE);
+    await authenticateOperatorWithProfile(OPERATOR_PHONE);
+    const op = await prisma.operatorProfile.findFirstOrThrow();
+    await prisma.quote.create({
+      data: { serviceId, operatorProfileId: op.id, amount: 50000 },
+    });
+    await expect(
+      prisma.quote.create({
+        data: { serviceId, operatorProfileId: op.id, amount: 40000 },
+      }),
+    ).rejects.toMatchObject({ code: 'P2002' });
+  });
+
+  it('dos cotizaciones simultáneas del mismo operador dejan una sola', async () => {
+    const { serviceId } = await createPendingService(CLIENT_PHONE);
+    const operator = await authenticateOperatorWithProfile(OPERATOR_PHONE);
+
+    const results = await Promise.all([
+      operator.post(`/services/${serviceId}/quotes`).send({ amount: 50000 }),
+      operator.post(`/services/${serviceId}/quotes`).send({ amount: 60000 }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 201]);
+    expect(await prisma.quote.count({ where: { serviceId } })).toBe(1);
+  });
+
+  it('409 OPERATOR_NOT_AVAILABLE si el operador no está disponible', async () => {
+    const { serviceId } = await createPendingService(CLIENT_PHONE);
+    const operator = await authenticateOperatorWithProfile(OPERATOR_PHONE);
+    await prisma.operatorProfile.updateMany({ data: { available: false } });
+
+    const res = await operator
+      .post(`/services/${serviceId}/quotes`)
+      .send({ amount: 50000 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('OPERATOR_NOT_AVAILABLE');
+    expect(await prisma.quote.count()).toBe(0);
+  });
+
+  it('400 si el importe es decimal o está fuera de rango', async () => {
+    const { serviceId } = await createPendingService(CLIENT_PHONE);
+    const operator = await authenticateOperatorWithProfile(OPERATOR_PHONE);
+
+    for (const amount of [50000.5, 9999, 2000001]) {
+      const res = await operator
+        .post(`/services/${serviceId}/quotes`)
+        .send({ amount });
+      expect(res.status).toBe(400);
+    }
+    expect(await prisma.quote.count()).toBe(0);
   });
 
   it('422 si el operador no tiene OperatorProfile', async () => {
@@ -178,7 +267,7 @@ describe('POST /services/:id/quotes (REQ-001/007)', () => {
 
     const res = await operator
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 5000 });
+      .send({ amount: 50000 });
 
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('OPERATOR_PROFILE_REQUIRED');
@@ -191,14 +280,14 @@ describe('POST /services/:id/quotes (REQ-001/007)', () => {
     // Create quote + accept it → ACTIVE
     const quoteRes = await operator
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 5000 });
+      .send({ amount: 50000 });
     await client.post(`/quotes/${quoteRes.body.id}/accept`).send({});
 
     // Second operator tries to quote on ACTIVE
     const op2 = await authenticateOperatorWithProfile(OPERATOR2_PHONE);
     const res = await op2
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 6000 });
+      .send({ amount: 60000 });
 
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('INVALID_TRANSITION');
@@ -210,7 +299,7 @@ describe('POST /services/:id/quotes (REQ-001/007)', () => {
 
     const res = await client2
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 5000 });
+      .send({ amount: 50000 });
 
     expect(res.status).toBe(403);
   });
@@ -219,7 +308,7 @@ describe('POST /services/:id/quotes (REQ-001/007)', () => {
     const { serviceId } = await createPendingService(CLIENT_PHONE);
     const res = await request(createApp())
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 5000 });
+      .send({ amount: 50000 });
     expect(res.status).toBe(401);
   });
 });
@@ -232,8 +321,8 @@ describe('GET /services/:id/quotes (REQ-002)', () => {
     const op1 = await authenticateOperatorWithProfile(OPERATOR_PHONE);
     const op2 = await authenticateOperatorWithProfile(OPERATOR2_PHONE);
 
-    await op1.post(`/services/${serviceId}/quotes`).send({ amount: 4000 });
-    await op2.post(`/services/${serviceId}/quotes`).send({ amount: 4500 });
+    await op1.post(`/services/${serviceId}/quotes`).send({ amount: 40000 });
+    await op2.post(`/services/${serviceId}/quotes`).send({ amount: 45000 });
 
     const res = await client.get(`/services/${serviceId}/quotes`);
 
@@ -251,14 +340,14 @@ describe('GET /services/:id/quotes (REQ-002)', () => {
     const op1 = await authenticateOperatorWithProfile(OPERATOR_PHONE);
     const op2 = await authenticateOperatorWithProfile(OPERATOR2_PHONE);
 
-    await op1.post(`/services/${serviceId}/quotes`).send({ amount: 4000 });
-    await op2.post(`/services/${serviceId}/quotes`).send({ amount: 4500 });
+    await op1.post(`/services/${serviceId}/quotes`).send({ amount: 40000 });
+    await op2.post(`/services/${serviceId}/quotes`).send({ amount: 45000 });
 
     const res = await op1.get(`/services/${serviceId}/quotes`);
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
-    expect(res.body[0].amount).toBe(4000);
+    expect(res.body[0].amount).toBe(40000);
   });
 
   it('cliente ajeno → 404', async () => {
@@ -278,7 +367,7 @@ describe('POST /quotes/:id/accept (REQ-003/006)', () => {
     const operator = await authenticateOperatorWithProfile(OPERATOR_PHONE);
     const quoteRes = await operator
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 5000 });
+      .send({ amount: 50000 });
 
     const res = await client
       .post(`/quotes/${quoteRes.body.id}/accept`)
@@ -293,9 +382,10 @@ describe('POST /quotes/:id/accept (REQ-003/006)', () => {
       where: { serviceId },
     });
     expect(payment).not.toBeNull();
-    expect(payment!.amount).toBe(5000);
-    expect(payment!.commission).toBe(0);
-    expect(payment!.operatorAmount).toBe(5000);
+    // DCC-08: comisión del 10 % (tasa por defecto) fijada al aceptar.
+    expect(payment!.amount).toBe(50000);
+    expect(payment!.commission).toBe(5000);
+    expect(payment!.operatorAmount).toBe(45000);
     expect(payment!.status).toBe('PENDING');
   });
 
@@ -304,7 +394,7 @@ describe('POST /quotes/:id/accept (REQ-003/006)', () => {
     const operator = await authenticateOperatorWithProfile(OPERATOR_PHONE);
     const quoteRes = await operator
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 5000 });
+      .send({ amount: 50000 });
 
     await client.post(`/quotes/${quoteRes.body.id}/accept`).send({});
     const res = await client
@@ -320,7 +410,7 @@ describe('POST /quotes/:id/accept (REQ-003/006)', () => {
     const operator = await authenticateOperatorWithProfile(OPERATOR_PHONE);
     const quoteRes = await operator
       .post(`/services/${serviceId}/quotes`)
-      .send({ amount: 5000 });
+      .send({ amount: 50000 });
 
     // Client2 (not the owner) tries to accept
     const client2 = await authenticateAs(CLIENT2_PHONE, UserRole.CLIENT);

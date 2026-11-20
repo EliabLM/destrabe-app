@@ -1,27 +1,23 @@
-import { createApp } from './app';
+import { startServer } from './bootstrap';
 import { parseEnv } from './lib/env';
 import { logger } from './lib/logger';
 import { prisma } from './lib/prisma';
 import { createShutdown, installShutdownHandlers } from './lib/shutdown';
 
-const env = parseEnv();
+const running = startServer(parseEnv());
 
-const app = createApp();
-
-const server = app.listen(env.PORT, () => {
-  logger.info(
-    { port: env.PORT, env: env.NODE_ENV },
-    'destrabe backend listening',
-  );
-});
-
-// DCC-17: apagado ordenado con SIGTERM/SIGINT. Los procesos de fondo que se
-// arranquen aquí (p. ej. el barrido de expiración) van en `steps`.
+// DCC-17: apagado ordenado con SIGTERM/SIGINT. Primero el servidor HTTP,
+// luego el barrido de expiración (DCC-07) y al final la BD.
 installShutdownHandlers(
   createShutdown({
-    server,
+    server: running.server,
     logger,
-    steps: [],
+    steps: [
+      {
+        name: 'service-expiry-sweeper',
+        close: () => running.expirySweeper.stop(),
+      },
+    ],
     disconnectDb: () => prisma.$disconnect(),
   }),
 );
