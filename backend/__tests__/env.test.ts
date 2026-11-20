@@ -204,7 +204,7 @@ describe('parseEnv — service env vars T10 (REQ-008)', () => {
  *
  * Valida:
  *  - PAYMENT_GATEWAY default 'stub', override 'mercadopago' válido
- *  - PAYMENT_COMMISSION_RATE default 0, override válido, inválido rechazado
+ *  - PAYMENT_COMMISSION_RATE default 10 (DCC-08), override válido, inválido rechazado
  *  - PAYMENT_WEBHOOK_TOKEN default en test, requerido en dev/prod
  */
 describe('parseEnv — payment env vars T2 (cambio-006)', () => {
@@ -230,23 +230,34 @@ describe('parseEnv — payment env vars T2 (cambio-006)', () => {
     expect(env.PAYMENT_GATEWAY).toBe('mercadopago');
   });
 
-  it('defaults PAYMENT_COMMISSION_RATE to 0 when absent', () => {
+  it('defaults PAYMENT_COMMISSION_RATE to 10 when absent (DCC-08)', () => {
     const env = parseEnv({
       NODE_ENV: 'test',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
     });
-    expect(env.PAYMENT_COMMISSION_RATE).toBe(0);
+    expect(env.PAYMENT_COMMISSION_RATE).toBe(10);
   });
 
   it('accepts PAYMENT_COMMISSION_RATE override', () => {
     const env = parseEnv({
       NODE_ENV: 'test',
-      PAYMENT_COMMISSION_RATE: '10',
+      PAYMENT_COMMISSION_RATE: '15',
       BETTER_AUTH_SECRET: VALID_SECRET,
       BETTER_AUTH_URL: VALID_URL,
     });
-    expect(env.PAYMENT_COMMISSION_RATE).toBe(10);
+    expect(env.PAYMENT_COMMISSION_RATE).toBe(15);
+  });
+
+  it('rejects decimal PAYMENT_COMMISSION_RATE', () => {
+    expect(() =>
+      parseEnv({
+        NODE_ENV: 'test',
+        PAYMENT_COMMISSION_RATE: '7.5',
+        BETTER_AUTH_SECRET: VALID_SECRET,
+        BETTER_AUTH_URL: VALID_URL,
+      }),
+    ).toThrow();
   });
 
   it('rejects PAYMENT_COMMISSION_RATE above 100', () => {

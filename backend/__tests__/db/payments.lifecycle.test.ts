@@ -111,6 +111,7 @@ async function authenticateOperatorWithProfile(phone: string) {
       userId: user!.id,
       truckType: 'Grua mediana',
       licensePlate: 'ABC123',
+      available: true,
     },
   });
   return agent;
@@ -134,7 +135,7 @@ async function createAcceptedService(
 
   const quoteRes = await operator
     .post(`/services/${serviceId}/quotes`)
-    .send({ amount: 5000 });
+    .send({ amount: 50000 });
   expect(quoteRes.status).toBe(201);
 
   const acceptRes = await client
@@ -149,7 +150,7 @@ async function createAcceptedService(
   expect(payment).not.toBeNull();
   expect(payment!.status).toBe('PENDING');
 
-  return { client, operator, serviceId, paymentId: payment!.id, amount: 5000 };
+  return { client, operator, serviceId, paymentId: payment!.id, amount: 50000 };
 }
 
 const CLIENT_PHONE = '+573005000001';
@@ -172,13 +173,41 @@ describe('POST /payments/:id/init (REQ-001)', () => {
     expect(res.body.gatewayPaymentId).toMatch(/^stub-/);
     expect(res.body.redirectUrl).toMatch(/^https:\/\/pago\.stub\//);
 
-    // Commission persisted
+    // Comisión fijada al aceptar (10 % por defecto, DCC-08).
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
     });
-    expect(payment!.commission).toBe(0); // env default 0
-    expect(payment!.operatorAmount).toBe(5000);
+    expect(payment!.commission).toBe(5000);
+    expect(payment!.operatorAmount).toBe(45000);
     expect(payment!.mpPaymentId).toMatch(/^stub-/);
+  });
+
+  it('init y webhook no recalculan la comisión guardada (DCC-08)', async () => {
+    const { client, paymentId } = await createAcceptedService(
+      CLIENT_PHONE,
+      OPERATOR_PHONE,
+    );
+    // Importes fijados con otra tasa: deben quedar intactos.
+    await prisma.payment.update({
+      where: { id: paymentId },
+      data: { commission: 7500, operatorAmount: 42500 },
+    });
+
+    expect((await client.post(`/payments/${paymentId}/init`)).status).toBe(200);
+    await request(createApp())
+      .post(WEBHOOK_URL)
+      .set('x-webhook-token', 'test-webhook-token')
+      .send({ paymentId, status: 'CONFIRMED' });
+
+    const payment = await prisma.payment.findUniqueOrThrow({
+      where: { id: paymentId },
+    });
+    expect(payment).toMatchObject({
+      status: 'CONFIRMED',
+      amount: 50000,
+      commission: 7500,
+      operatorAmount: 42500,
+    });
   });
 
   it('CLIENT ajeno → 403', async () => {
@@ -229,7 +258,7 @@ describe('POST /payments/:id/init (REQ-001)', () => {
 // ─── POST /payments/webhook (REQ-002/004) ────────────────────────────────────
 
 describe('POST /payments/webhook (REQ-002/004)', () => {
-  it('webhook CONFIRMED sobre PENDING → 200 + status CONFIRMED + commission recalculado', async () => {
+  it('webhook CONFIRMED sobre PENDING → 200 + status CONFIRMED con la comisión guardada', async () => {
     const { client, paymentId } = await createAcceptedService(
       CLIENT_PHONE,
       OPERATOR_PHONE,
@@ -248,8 +277,8 @@ describe('POST /payments/webhook (REQ-002/004)', () => {
       where: { id: paymentId },
     });
     expect(payment!.status).toBe('CONFIRMED');
-    expect(payment!.commission).toBe(0);
-    expect(payment!.operatorAmount).toBe(5000);
+    expect(payment!.commission).toBe(5000);
+    expect(payment!.operatorAmount).toBe(45000);
   });
 
   it('webhook duplicado → idempotente (200 sin mutar)', async () => {

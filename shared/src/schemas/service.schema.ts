@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ServiceStatus, ServiceType } from '../types/service';
 import {
+  copAmountSchema,
   httpsUrlSchema,
   latitudeQuerySchema,
   latitudeSchema,
@@ -53,10 +54,11 @@ export const updateServiceStatusSchema = z.object({
 
 /**
  * Schema for `POST /services/:id/quotes` body (cambio-005 / REQ-004).
- * `amount` requerido (positivo); `estimatedMinutes` y `note` opcionales.
+ * `amount` requerido: pesos COP enteros entre `QUOTE_AMOUNT_MIN_COP` y
+ * `QUOTE_AMOUNT_MAX_COP` (DCC-08); `estimatedMinutes` y `note` opcionales.
  */
 export const createQuoteSchema = z.object({
-  amount: z.number().positive('amount must be positive'),
+  amount: copAmountSchema,
   estimatedMinutes: z.number().int().positive().optional(),
   note: z.string().max(500).optional(),
 });
