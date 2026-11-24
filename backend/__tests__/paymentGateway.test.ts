@@ -32,7 +32,21 @@ describe('StubPaymentGateway (REQ-005)', () => {
     });
 
     expect(result.gatewayPaymentId).toBe('stub-pay-123');
-    expect(result.redirectUrl).toBe('https://pago.stub/pay-123');
+  });
+
+  // #16: el stub no tiene página de pago; la app usa la simulación.
+  it('initPayment marks the payment as simulated without redirectUrl', async () => {
+    const result = await gateway.initPayment({
+      id: 'pay-123',
+      amount: 5000,
+      commission: 500,
+      operatorAmount: 4500,
+    });
+
+    expect(result).toEqual({
+      gatewayPaymentId: 'stub-pay-123',
+      simulated: true,
+    });
   });
 
   it('initPayment works with different id', async () => {

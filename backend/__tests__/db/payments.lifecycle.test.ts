@@ -176,7 +176,9 @@ describe('POST /payments/:id/init (REQ-001)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.gatewayPaymentId).toMatch(/^stub-/);
-    expect(res.body.redirectUrl).toMatch(/^https:\/\/pago\.stub\//);
+    // #16: con el stub no hay URL de pago; la app usa la simulación.
+    expect(res.body.simulated).toBe(true);
+    expect(res.body).not.toHaveProperty('redirectUrl');
 
     // Comisión fijada al aceptar (10 % por defecto, DCC-08).
     const payment = await prisma.payment.findUnique({

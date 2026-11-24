@@ -14,6 +14,7 @@ const m = vi.hoisted(() => ({
   session: vi.fn(),
   paymentFindUnique: vi.fn(),
   paymentUpdateMany: vi.fn(),
+  paymentUpdate: vi.fn(),
 }));
 
 vi.mock('../src/lib/auth', () => ({
@@ -25,6 +26,7 @@ vi.mock('../src/lib/prisma', () => ({
     payment: {
       findUnique: m.paymentFindUnique,
       updateMany: m.paymentUpdateMany,
+      update: m.paymentUpdate,
     },
   },
 }));
@@ -170,5 +172,26 @@ describe('POST /payments/:id/simulate (#16)', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('POST /payments/:id/init con el stub (#16)', () => {
+  it('responde simulated: true y sin redirectUrl', async () => {
+    as(OWNER);
+    m.paymentFindUnique.mockResolvedValue({
+      ...payment(),
+      amount: 50000,
+      commission: 5000,
+      operatorAmount: 45000,
+    });
+    m.paymentUpdate.mockResolvedValue({ mpPaymentId: 'stub-pay-1' });
+
+    const res = await request(createApp()).post('/payments/pay-1/init');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      gatewayPaymentId: 'stub-pay-1',
+      simulated: true,
+    });
   });
 });
