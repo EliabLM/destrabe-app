@@ -4,6 +4,7 @@ import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
 import type { ValidatedRequest } from '../middleware/validate';
 import { prisma } from '../lib/prisma';
 import { getPaymentGateway } from '../services/paymentFactory';
+import { settlePendingPayment } from '../services/paymentSettlement';
 import {
   AlreadyProcessedError,
   PaymentPendingError,
@@ -114,16 +115,23 @@ paymentsRouter.post('/webhook', async (req, res, next) => {
       return res.json({ status: 'ignored' });
     }
 
-    // REQ-002/004: Transicionar PENDING → CONFIRMED/FAILED
-    const updated = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: result.status as 'CONFIRMED' | 'FAILED',
-        mpPaymentId: result.gatewayReference ?? payment.mpPaymentId,
-      },
-    });
+    // REQ-002/004: Transicionar PENDING → CONFIRMED/FAILED (#16: misma
+    // transición que la simulación de pago).
+    const settled = await settlePendingPayment(
+      payment.id,
+      result.status,
+      result.gatewayReference,
+    );
+    if (!settled) {
+      // Otro proceso lo cerró entre la lectura y la escritura: idempotente.
+      const current = await prisma.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+        select: { status: true },
+      });
+      return res.json({ status: current.status });
+    }
 
-    res.json({ status: updated.status });
+    res.json({ status: result.status });
   } catch (err) {
     // T7: Mapear errores de dominio a HTTP
     const e = err as Error & { status?: number; code?: string };
