@@ -1,9 +1,16 @@
-import { Router } from 'express';
-import { UserRole } from '@destrabe/shared';
+import { Router, type RequestHandler } from 'express';
+import {
+  UserRole,
+  simulatePaymentSchema,
+  type SimulatePaymentInput,
+} from '@destrabe/shared';
 import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
-import type { ValidatedRequest } from '../middleware/validate';
+import { requireFeature } from '../middleware/requireFeature';
+import { validate, type ValidatedRequest } from '../middleware/validate';
+import { env } from '../lib/env';
 import { prisma } from '../lib/prisma';
 import { getPaymentGateway } from '../services/paymentFactory';
+import { settlePendingPayment } from '../services/paymentSettlement';
 import {
   AlreadyProcessedError,
   PaymentPendingError,
@@ -14,9 +21,11 @@ import {
 /**
  * Payments routes — cambio-006 / REQ-001, REQ-002, REQ-004.
  *
- * Dos endpoints:
- *   POST /:id/init   — CLIENT dueño inicia pago (requireAuth + requireRole)
- *   POST /webhook    — público, valida X-Webhook-Token, idempotente
+ * Endpoints:
+ *   POST /:id/init     — CLIENT dueño inicia pago (requireAuth + requireRole)
+ *   POST /:id/simulate — demo (#16): el dueño aprueba o rechaza el pago; solo
+ *                        con gateway stub y flag `pagoSimulado`
+ *   POST /webhook      — público, valida X-Webhook-Token, idempotente
  */
 
 type PaymentRequest = AuthedRequest & ValidatedRequest;
@@ -73,6 +82,7 @@ paymentsRouter.post(
       res.json({
         gatewayPaymentId: updated.mpPaymentId,
         redirectUrl: gatewayResult.redirectUrl,
+        ...(gatewayResult.simulated ? { simulated: true } : {}),
       });
     } catch (err) {
       next(err);
@@ -114,16 +124,23 @@ paymentsRouter.post('/webhook', async (req, res, next) => {
       return res.json({ status: 'ignored' });
     }
 
-    // REQ-002/004: Transicionar PENDING → CONFIRMED/FAILED
-    const updated = await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: result.status as 'CONFIRMED' | 'FAILED',
-        mpPaymentId: result.gatewayReference ?? payment.mpPaymentId,
-      },
-    });
+    // REQ-002/004: Transicionar PENDING → CONFIRMED/FAILED (#16: misma
+    // transición que la simulación de pago).
+    const settled = await settlePendingPayment(
+      payment.id,
+      result.status,
+      result.gatewayReference,
+    );
+    if (!settled) {
+      // Otro proceso lo cerró entre la lectura y la escritura: idempotente.
+      const current = await prisma.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+        select: { status: true },
+      });
+      return res.json({ status: current.status });
+    }
 
-    res.json({ status: updated.status });
+    res.json({ status: result.status });
   } catch (err) {
     // T7: Mapear errores de dominio a HTTP
     const e = err as Error & { status?: number; code?: string };
@@ -150,3 +167,55 @@ paymentsRouter.post('/webhook', async (req, res, next) => {
     next(err);
   }
 });
+
+// ─── POST /:id/simulate — Pago simulado de la demo (#16) ─────────────────────
+
+/** 404 (como ruta inexistente) si la pasarela no es el stub. */
+const requireStubGateway: RequestHandler = (_req, res, next) => {
+  if (env.PAYMENT_GATEWAY !== 'stub') {
+    return res.status(404).json({ error: 'Not Found', code: 'NOT_FOUND' });
+  }
+  next();
+};
+
+const SIMULATED_STATUS = {
+  approved: 'CONFIRMED',
+  rejected: 'FAILED',
+} as const;
+
+paymentsRouter.post(
+  '/:id/simulate',
+  requireAuth,
+  requireStubGateway,
+  requireFeature('pagoSimulado'),
+  validate(simulatePaymentSchema, 'body'),
+  async (req, res, next) => {
+    try {
+      const sr = req as PaymentRequest;
+      const paymentId = req.params.id as string;
+      const { result } = sr.validated!['body'] as SimulatePaymentInput;
+
+      const payment = await prisma.payment.findUnique({
+        where: { id: paymentId },
+        include: { service: { include: { client: true } } },
+      });
+      // Inexistente o de otro usuario: 404, sin revelar que existe.
+      if (!payment || payment.service.client.userId !== sr.user!.id) {
+        return res.status(404).json({ error: 'Not Found', code: 'NOT_FOUND' });
+      }
+
+      if (payment.status !== 'PENDING') {
+        throw new AlreadyProcessedError();
+      }
+
+      const status = SIMULATED_STATUS[result];
+      if (!(await settlePendingPayment(payment.id, status))) {
+        throw new AlreadyProcessedError();
+      }
+
+      res.json({ id: payment.id, status });
+    } catch (err) {
+      next(err);
+    }
+  },
+);

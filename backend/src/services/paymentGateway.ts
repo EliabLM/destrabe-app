@@ -4,15 +4,25 @@
  *
  * La interfaz abstrae el proveedor de pagos (stub para dev, MercadoPago en
  * cambio-007+). El StubPaymentGateway simula un gateway real:
- *  - initPayment → gatewayPaymentId determinístico `stub-{id}` + redirectUrl
+ *  - initPayment → gatewayPaymentId determinístico `stub-{id}` + `simulated`
+ *    (#16: no hay página de pago; la app usa POST /payments/:id/simulate)
  *  - processWebhook → valida X-Webhook-Token, extrae paymentId/status del payload
  */
 
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { env } from '../lib/env';
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
 export type WebhookHeaders = Record<string, string | string[] | undefined>;
+
+export interface InitPaymentResult {
+  gatewayPaymentId: string;
+  /** Página de pago de la pasarela (MercadoPago). */
+  redirectUrl?: string;
+  /** #16: pago simulado (stub); se confirma con POST /payments/:id/simulate. */
+  simulated?: boolean;
+}
 
 export interface PaymentGateway {
   initPayment(payment: {
@@ -20,7 +30,7 @@ export interface PaymentGateway {
     amount: number;
     commission: number;
     operatorAmount: number;
-  }): Promise<{ gatewayPaymentId: string; redirectUrl?: string }>;
+  }): Promise<InitPaymentResult>;
 
   processWebhook(
     payload: unknown,
@@ -40,11 +50,8 @@ export class StubPaymentGateway implements PaymentGateway {
     amount: number;
     commission: number;
     operatorAmount: number;
-  }): Promise<{ gatewayPaymentId: string; redirectUrl?: string }> {
-    return {
-      gatewayPaymentId: `stub-${payment.id}`,
-      redirectUrl: `https://pago.stub/${payment.id}`,
-    };
+  }): Promise<InitPaymentResult> {
+    return { gatewayPaymentId: `stub-${payment.id}`, simulated: true };
   }
 
   async processWebhook(
@@ -57,7 +64,11 @@ export class StubPaymentGateway implements PaymentGateway {
   }> {
     // REQ-002: Validar X-Webhook-Token (movido desde el route en T3)
     const token = headers?.['x-webhook-token'];
-    if (typeof token !== 'string' || token !== env.PAYMENT_WEBHOOK_TOKEN) {
+    if (
+      typeof token !== 'string' ||
+      !env.PAYMENT_WEBHOOK_TOKEN ||
+      !sameSecret(token, env.PAYMENT_WEBHOOK_TOKEN)
+    ) {
       throw Object.assign(new Error('Invalid webhook token'), {
         status: 401,
         code: 'UNAUTHORIZED',
@@ -71,6 +82,16 @@ export class StubPaymentGateway implements PaymentGateway {
       status: data.status === 'FAILED' ? 'FAILED' : 'CONFIRMED',
     };
   }
+}
+
+/**
+ * Compara dos secretos en tiempo constante (#16, DES-A08). Se comparan sus
+ * SHA-256 para que las longitudes coincidan: `timingSafeEqual` lanza si no,
+ * y comparar el largo antes revelaría la longitud del token.
+ */
+function sameSecret(received: string, expected: string): boolean {
+  const digest = (value: string) => createHash('sha256').update(value).digest();
+  return timingSafeEqual(digest(received), digest(expected));
 }
 
 // ─── Errores ─────────────────────────────────────────────────────────────────

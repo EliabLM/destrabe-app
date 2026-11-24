@@ -23,6 +23,13 @@ variable de entorno `FEATURE_FLAGS` del backend.
 | `GET /api/me/features`                    | `backend/src/routes/me.routes.ts`          |
 | Store de la app y hook `useFeature(flag)` | `app/src/stores/featuresStore.ts`          |
 
+## Flags en uso
+
+| Flag           | Qué protege                                                                                                                                           |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pagoSimulado` | `POST /payments/:id/simulate` (#16): el cliente dueño aprueba o rechaza su pago en la demo. Además exige `PAYMENT_GATEWAY=stub`; si no, responde 404. |
+| `ubicacionGps` | Reservado para la ubicación por GPS de la app.                                                                                                        |
+
 ## 1. Crear un flag
 
 Añade el nombre (camelCase) al catálogo en `shared/src/featureFlags.ts`:

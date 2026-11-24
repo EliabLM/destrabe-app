@@ -305,9 +305,16 @@ servicesRouter.get('/:id', async (req, res, next) => {
     const user = (req as AuthedRequest).user!;
     const serviceId = req.params.id as string;
 
+    // #16: el pago va para el dueño y el operador asignado; la vista previa
+    // (toOperatorPreview) lo deja fuera por ser lista blanca.
     const service = await prisma.service.findUnique({
       where: { id: serviceId },
-      include: { client: true },
+      include: {
+        client: true,
+        payment: {
+          select: { id: true, status: true, amount: true, commission: true },
+        },
+      },
     });
 
     if (!service) {
