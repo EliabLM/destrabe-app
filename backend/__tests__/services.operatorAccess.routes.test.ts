@@ -232,6 +232,66 @@ describe('GET /services/:id — rol OPERATOR', () => {
   });
 });
 
+describe('GET /services/:id — pago en el detalle (#16)', () => {
+  const PAYMENT = {
+    id: 'pay-1',
+    status: 'PENDING',
+    amount: 50000,
+    commission: 5000,
+  };
+
+  it('pide el pago con solo id, status, amount y commission', async () => {
+    as('client-user', 'CLIENT');
+    m.serviceFindUnique.mockResolvedValue(svc({ payment: PAYMENT }));
+    await request(createApp()).get('/services/svc-1');
+    expect(m.serviceFindUnique).toHaveBeenCalledWith({
+      where: { id: 'svc-1' },
+      include: {
+        client: true,
+        payment: {
+          select: { id: true, status: true, amount: true, commission: true },
+        },
+      },
+    });
+  });
+
+  it('el dueño recibe payment', async () => {
+    as('client-user', 'CLIENT');
+    m.serviceFindUnique.mockResolvedValue(
+      svc({ status: 'ACTIVE', payment: PAYMENT }),
+    );
+    const res = await request(createApp()).get('/services/svc-1');
+    expect(res.status).toBe(200);
+    expect(res.body.payment).toEqual(PAYMENT);
+  });
+
+  it('el operador asignado recibe payment', async () => {
+    as('op-a-user', 'OPERATOR');
+    operatorProfile('op-a');
+    m.serviceFindUnique.mockResolvedValue(
+      svc({
+        status: 'ACTIVE',
+        assignedOperatorProfileId: 'op-a',
+        payment: PAYMENT,
+      }),
+    );
+    const res = await request(createApp()).get('/services/svc-1');
+    expect(res.status).toBe(200);
+    expect(res.body.payment).toEqual(PAYMENT);
+  });
+
+  it('la vista previa de un operador no asignado no incluye payment', async () => {
+    as('op-b-user', 'OPERATOR');
+    operatorProfile('op-b');
+    m.serviceFindUnique.mockResolvedValue(
+      svc({ status: 'QUOTED', payment: null }),
+    );
+    const res = await request(createApp()).get('/services/svc-1');
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty('payment');
+  });
+});
+
 describe('PATCH /services/:id/status — rol OPERATOR', () => {
   const patch = (status: string) =>
     request(createApp()).patch('/services/svc-1/status').send({ status });

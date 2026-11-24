@@ -449,3 +449,29 @@ describe('PATCH /services/:id/status — payment guard (service-lifecycle REQ-00
     expect(res.body.status).toBe(ServiceStatus.CANCELLED);
   });
 });
+
+// ─── GET /services/:id con el pago (#16, REQ-PS-001) ─────────────────────────
+
+describe('GET /services/:id — pago en el detalle (#16)', () => {
+  it('dueño y operador asignado ven el pago; otro cliente 404', async () => {
+    const { client, operator, serviceId, paymentId } =
+      await createAcceptedService(CLIENT_PHONE, OPERATOR_PHONE);
+    const expected = {
+      id: paymentId,
+      status: 'PENDING',
+      amount: 50000,
+      commission: 5000,
+    };
+
+    const owner = await client.get(`/services/${serviceId}`);
+    expect(owner.status).toBe(200);
+    expect(owner.body.payment).toEqual(expected);
+
+    const assigned = await operator.get(`/services/${serviceId}`);
+    expect(assigned.status).toBe(200);
+    expect(assigned.body.payment).toEqual(expected);
+
+    const client2 = await authenticateAs(CLIENT2_PHONE, UserRole.CLIENT);
+    expect((await client2.get(`/services/${serviceId}`)).status).toBe(404);
+  });
+});
