@@ -9,6 +9,7 @@
  *  - processWebhook → valida X-Webhook-Token, extrae paymentId/status del payload
  */
 
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { env } from '../lib/env';
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
@@ -63,7 +64,11 @@ export class StubPaymentGateway implements PaymentGateway {
   }> {
     // REQ-002: Validar X-Webhook-Token (movido desde el route en T3)
     const token = headers?.['x-webhook-token'];
-    if (typeof token !== 'string' || token !== env.PAYMENT_WEBHOOK_TOKEN) {
+    if (
+      typeof token !== 'string' ||
+      !env.PAYMENT_WEBHOOK_TOKEN ||
+      !sameSecret(token, env.PAYMENT_WEBHOOK_TOKEN)
+    ) {
       throw Object.assign(new Error('Invalid webhook token'), {
         status: 401,
         code: 'UNAUTHORIZED',
@@ -77,6 +82,16 @@ export class StubPaymentGateway implements PaymentGateway {
       status: data.status === 'FAILED' ? 'FAILED' : 'CONFIRMED',
     };
   }
+}
+
+/**
+ * Compara dos secretos en tiempo constante (#16, DES-A08). Se comparan sus
+ * SHA-256 para que las longitudes coincidan: `timingSafeEqual` lanza si no,
+ * y comparar el largo antes revelaría la longitud del token.
+ */
+function sameSecret(received: string, expected: string): boolean {
+  const digest = (value: string) => createHash('sha256').update(value).digest();
+  return timingSafeEqual(digest(received), digest(expected));
 }
 
 // ─── Errores ─────────────────────────────────────────────────────────────────
