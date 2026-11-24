@@ -79,6 +79,11 @@ afterAll(async () => {
 });
 
 import { createApp } from '../../src/app';
+import { env } from '../../src/lib/env';
+import {
+  configFlagStore,
+  setFeatureFlagStore,
+} from '../../src/lib/featureFlags';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -473,5 +478,133 @@ describe('GET /services/:id — pago en el detalle (#16)', () => {
 
     const client2 = await authenticateAs(CLIENT2_PHONE, UserRole.CLIENT);
     expect((await client2.get(`/services/${serviceId}`)).status).toBe(404);
+  });
+});
+
+// ─── POST /payments/:id/simulate (#16, REQ-PS-002) ───────────────────────────
+
+describe('POST /payments/:id/simulate (#16)', () => {
+  const originalGateway = env.PAYMENT_GATEWAY;
+
+  beforeEach(() => {
+    env.PAYMENT_GATEWAY = 'stub';
+    setFeatureFlagStore(
+      configFlagStore({
+        pagoSimulado: {
+          mode: 'allowlist',
+          users: [CLIENT_PHONE, CLIENT2_PHONE],
+        },
+      }),
+    );
+  });
+
+  afterAll(() => {
+    env.PAYMENT_GATEWAY = originalGateway;
+    setFeatureFlagStore(configFlagStore({}));
+  });
+
+  it('el dueño aprueba → CONFIRMED y el operador asignado completa', async () => {
+    const { client, operator, serviceId, paymentId } =
+      await createAcceptedService(CLIENT_PHONE, OPERATOR_PHONE);
+
+    const res = await client
+      .post(`/payments/${paymentId}/simulate`)
+      .send({ result: 'approved' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ id: paymentId, status: 'CONFIRMED' });
+
+    const detail = await client.get(`/services/${serviceId}`);
+    expect(detail.body.payment.status).toBe('CONFIRMED');
+
+    const done = await operator
+      .patch(`/services/${serviceId}/status`)
+      .send({ status: ServiceStatus.COMPLETED });
+    expect(done.status).toBe(200);
+    expect(done.body.status).toBe(ServiceStatus.COMPLETED);
+  });
+
+  it('rechazo → FAILED, el servicio sigue ACTIVE y no se puede completar', async () => {
+    const { client, operator, serviceId, paymentId } =
+      await createAcceptedService(CLIENT_PHONE, OPERATOR_PHONE);
+
+    const res = await client
+      .post(`/payments/${paymentId}/simulate`)
+      .send({ result: 'rejected' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('FAILED');
+
+    const service = await prisma.service.findUniqueOrThrow({
+      where: { id: serviceId },
+    });
+    expect(service.status).toBe(ServiceStatus.ACTIVE);
+
+    const done = await operator
+      .patch(`/services/${serviceId}/status`)
+      .send({ status: ServiceStatus.COMPLETED });
+    expect(done.status).toBe(409);
+    expect(done.body.code).toBe('PAYMENT_PENDING');
+  });
+
+  it('otro cliente → 404 y el pago sigue PENDING', async () => {
+    const { paymentId } = await createAcceptedService(
+      CLIENT_PHONE,
+      OPERATOR_PHONE,
+    );
+    const client2 = await authenticateAs(CLIENT2_PHONE, UserRole.CLIENT);
+
+    const res = await client2
+      .post(`/payments/${paymentId}/simulate`)
+      .send({ result: 'approved' });
+
+    expect(res.status).toBe(404);
+    const payment = await prisma.payment.findUniqueOrThrow({
+      where: { id: paymentId },
+    });
+    expect(payment.status).toBe('PENDING');
+  });
+
+  it('flag apagado → 404', async () => {
+    const { client, paymentId } = await createAcceptedService(
+      CLIENT_PHONE,
+      OPERATOR_PHONE,
+    );
+    setFeatureFlagStore(configFlagStore({}));
+
+    const res = await client
+      .post(`/payments/${paymentId}/simulate`)
+      .send({ result: 'approved' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('PAYMENT_GATEWAY=mercadopago → 404', async () => {
+    const { client, paymentId } = await createAcceptedService(
+      CLIENT_PHONE,
+      OPERATOR_PHONE,
+    );
+    env.PAYMENT_GATEWAY = 'mercadopago';
+
+    const res = await client
+      .post(`/payments/${paymentId}/simulate`)
+      .send({ result: 'approved' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('pago ya confirmado → 409 ALREADY_PROCESSED', async () => {
+    const { client, paymentId } = await createAcceptedService(
+      CLIENT_PHONE,
+      OPERATOR_PHONE,
+    );
+    await client
+      .post(`/payments/${paymentId}/simulate`)
+      .send({ result: 'approved' });
+
+    const res = await client
+      .post(`/payments/${paymentId}/simulate`)
+      .send({ result: 'rejected' });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('ALREADY_PROCESSED');
   });
 });
