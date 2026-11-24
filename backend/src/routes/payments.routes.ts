@@ -82,6 +82,7 @@ paymentsRouter.post(
       res.json({
         gatewayPaymentId: updated.mpPaymentId,
         redirectUrl: gatewayResult.redirectUrl,
+        ...(gatewayResult.simulated ? { simulated: true } : {}),
       });
     } catch (err) {
       next(err);

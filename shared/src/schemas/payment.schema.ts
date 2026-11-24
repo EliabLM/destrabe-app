@@ -18,6 +18,8 @@ export const webhookEventSchema = z.object({
 export const initPaymentResponseSchema = z.object({
   gatewayPaymentId: z.string(),
   redirectUrl: z.string().optional(),
+  /** #16: pago simulado con el gateway stub (sin página de pago). */
+  simulated: z.boolean().optional(),
 });
 
 /**

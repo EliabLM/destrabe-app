@@ -4,7 +4,8 @@
  *
  * La interfaz abstrae el proveedor de pagos (stub para dev, MercadoPago en
  * cambio-007+). El StubPaymentGateway simula un gateway real:
- *  - initPayment → gatewayPaymentId determinístico `stub-{id}` + redirectUrl
+ *  - initPayment → gatewayPaymentId determinístico `stub-{id}` + `simulated`
+ *    (#16: no hay página de pago; la app usa POST /payments/:id/simulate)
  *  - processWebhook → valida X-Webhook-Token, extrae paymentId/status del payload
  */
 
@@ -14,13 +15,21 @@ import { env } from '../lib/env';
 
 export type WebhookHeaders = Record<string, string | string[] | undefined>;
 
+export interface InitPaymentResult {
+  gatewayPaymentId: string;
+  /** Página de pago de la pasarela (MercadoPago). */
+  redirectUrl?: string;
+  /** #16: pago simulado (stub); se confirma con POST /payments/:id/simulate. */
+  simulated?: boolean;
+}
+
 export interface PaymentGateway {
   initPayment(payment: {
     id: string;
     amount: number;
     commission: number;
     operatorAmount: number;
-  }): Promise<{ gatewayPaymentId: string; redirectUrl?: string }>;
+  }): Promise<InitPaymentResult>;
 
   processWebhook(
     payload: unknown,
@@ -40,11 +49,8 @@ export class StubPaymentGateway implements PaymentGateway {
     amount: number;
     commission: number;
     operatorAmount: number;
-  }): Promise<{ gatewayPaymentId: string; redirectUrl?: string }> {
-    return {
-      gatewayPaymentId: `stub-${payment.id}`,
-      redirectUrl: `https://pago.stub/${payment.id}`,
-    };
+  }): Promise<InitPaymentResult> {
+    return { gatewayPaymentId: `stub-${payment.id}`, simulated: true };
   }
 
   async processWebhook(
