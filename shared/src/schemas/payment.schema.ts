@@ -19,3 +19,13 @@ export const initPaymentResponseSchema = z.object({
   gatewayPaymentId: z.string(),
   redirectUrl: z.string().optional(),
 });
+
+/**
+ * Schema for `POST /payments/:id/simulate` body (#16). Solo demo con el
+ * gateway stub: `approved` → CONFIRMED, `rejected` → FAILED.
+ */
+export const simulatePaymentSchema = z.object({
+  result: z.enum(['approved', 'rejected']),
+});
+
+export type SimulatePaymentInput = z.infer<typeof simulatePaymentSchema>;

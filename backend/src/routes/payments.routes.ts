@@ -1,7 +1,13 @@
-import { Router } from 'express';
-import { UserRole } from '@destrabe/shared';
+import { Router, type RequestHandler } from 'express';
+import {
+  UserRole,
+  simulatePaymentSchema,
+  type SimulatePaymentInput,
+} from '@destrabe/shared';
 import { requireAuth, requireRole, AuthedRequest } from '../middleware/auth';
-import type { ValidatedRequest } from '../middleware/validate';
+import { requireFeature } from '../middleware/requireFeature';
+import { validate, type ValidatedRequest } from '../middleware/validate';
+import { env } from '../lib/env';
 import { prisma } from '../lib/prisma';
 import { getPaymentGateway } from '../services/paymentFactory';
 import { settlePendingPayment } from '../services/paymentSettlement';
@@ -15,9 +21,11 @@ import {
 /**
  * Payments routes — cambio-006 / REQ-001, REQ-002, REQ-004.
  *
- * Dos endpoints:
- *   POST /:id/init   — CLIENT dueño inicia pago (requireAuth + requireRole)
- *   POST /webhook    — público, valida X-Webhook-Token, idempotente
+ * Endpoints:
+ *   POST /:id/init     — CLIENT dueño inicia pago (requireAuth + requireRole)
+ *   POST /:id/simulate — demo (#16): el dueño aprueba o rechaza el pago; solo
+ *                        con gateway stub y flag `pagoSimulado`
+ *   POST /webhook      — público, valida X-Webhook-Token, idempotente
  */
 
 type PaymentRequest = AuthedRequest & ValidatedRequest;
@@ -158,3 +166,55 @@ paymentsRouter.post('/webhook', async (req, res, next) => {
     next(err);
   }
 });
+
+// ─── POST /:id/simulate — Pago simulado de la demo (#16) ─────────────────────
+
+/** 404 (como ruta inexistente) si la pasarela no es el stub. */
+const requireStubGateway: RequestHandler = (_req, res, next) => {
+  if (env.PAYMENT_GATEWAY !== 'stub') {
+    return res.status(404).json({ error: 'Not Found', code: 'NOT_FOUND' });
+  }
+  next();
+};
+
+const SIMULATED_STATUS = {
+  approved: 'CONFIRMED',
+  rejected: 'FAILED',
+} as const;
+
+paymentsRouter.post(
+  '/:id/simulate',
+  requireAuth,
+  requireStubGateway,
+  requireFeature('pagoSimulado'),
+  validate(simulatePaymentSchema, 'body'),
+  async (req, res, next) => {
+    try {
+      const sr = req as PaymentRequest;
+      const paymentId = req.params.id as string;
+      const { result } = sr.validated!['body'] as SimulatePaymentInput;
+
+      const payment = await prisma.payment.findUnique({
+        where: { id: paymentId },
+        include: { service: { include: { client: true } } },
+      });
+      // Inexistente o de otro usuario: 404, sin revelar que existe.
+      if (!payment || payment.service.client.userId !== sr.user!.id) {
+        return res.status(404).json({ error: 'Not Found', code: 'NOT_FOUND' });
+      }
+
+      if (payment.status !== 'PENDING') {
+        throw new AlreadyProcessedError();
+      }
+
+      const status = SIMULATED_STATUS[result];
+      if (!(await settlePendingPayment(payment.id, status))) {
+        throw new AlreadyProcessedError();
+      }
+
+      res.json({ id: payment.id, status });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
